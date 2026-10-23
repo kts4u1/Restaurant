@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#d9480f"/>
+  <path d="M96 268h320c0 92-72 160-160 160S96 360 96 268z" fill="#fff"/>
+  <path d="M136 268c8-62 58-108 120-108s112 46 120 108" fill="#fff4ea"/>
+  <circle cx="200" cy="222" r="10" fill="#d9480f" opacity=".35"/>
+  <circle cx="256" cy="200" r="10" fill="#d9480f" opacity=".35"/>
+  <circle cx="312" cy="222" r="10" fill="#d9480f" opacity=".35"/>
+  <path d="M300 92l64 112M340 84l40 120" stroke="#fff" stroke-width="18" stroke-linecap="round"/>
+  <text x="256" y="378" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="92" fill="#d9480f">₩</text>
+</svg>

@@ -1,0 +1,160 @@
+{
+ "summary": {
+  "confirm_id": "10185787",
+  "name": "명동칼국수남문교자",
+  "status": "Y",
+  "category": {
+   "name": "칼국수",
+   "id1": "9",
+   "id2": "124",
+   "id3": "819",
+   "id4": "25505",
+   "name1": "음식점",
+   "name2": "한식",
+   "name3": "국수",
+   "name4": "칼국수"
+  },
+  "point": {
+   "lon": 126.97801119288516,
+   "lat": 37.560508100458065
+  }
+ },
+ "menu": {
+  "menus": {
+   "items": [
+    {
+     "product_id": 18,
+     "name": "칼만두",
+     "price": 11000,
+     "mod_at": "2026-08-31 14:22:02"
+    },
+    {
+     "product_id": 20,
+     "name": "왕만두 (한접시/6알)",
+     "price": 10000,
+     "mod_at": "2026-08-31 14:22:02"
+    },
+    {
+     "product_id": 22,
+     "name": "냉콩국수",
+     "price": 12000,
+     "mod_at": "2026-08-31 14:22:02"
+    },
+    {
+     "product_id": 19,
+     "name": "칼국수",
+     "price": 10000,
+     "mod_at": "2026-08-31 14:22:02"
+    },
+    {
+     "product_id": 21,
+     "name": "만두국",
+     "price": 10000,
+     "mod_at": "2026-08-31 14:22:02"
+    },
+    {
+     "product_id": 23,
+     "name": "냉모밀",
+     "price": 10000,
+     "mod_at": "2026-08-31 14:22:02"
+    },
+    {
+     "product_id": 24,
+     "name": "비빔모밀",
+     "price": 11000,
+     "mod_at": "2026-08-31 22:34:19"
+    }
+   ],
+   "items_updated_at": "2026-08-31 22:34:19",
+   "menu_type": "FOOD"
+  }
+ },
+ "open_hours": {
+  "headline": {
+   "code": "OPEN",
+   "display_text": "영업 중",
+   "display_text_info": "18:00 까지"
+  },
+  "week_from_today": {
+   "week_periods": [
+    {
+     "days": [
+      {
+       "day_of_the_week_desc": "금(10/23)",
+       "on_days": {
+        "start_end_time_desc": "11:00 ~ 18:00",
+        "last_order_times_desc": [
+         "17:45 라스트오더"
+        ]
+       },
+       "is_highlight": true
+      },
+      {
+       "day_of_the_week_desc": "토(10/24)",
+       "on_days": {
+        "start_end_time_desc": "11:00 ~ 18:00",
+        "last_order_times_desc": [
+         "17:45 라스트오더"
+        ]
+       },
+       "is_highlight": false
+      }
+     ]
+    },
+    {
+     "days": [
+      {
+       "day_of_the_week_desc": "일(10/25)",
+       "off_days_desc": "휴무일",
+       "is_highlight": false
+      }
+     ]
+    },
+    {
+     "days": [
+      {
+       "day_of_the_week_desc": "월(10/26)",
+       "on_days": {
+        "start_end_time_desc": "11:00 ~ 18:00",
+        "last_order_times_desc": [
+         "17:45 라스트오더"
+        ]
+       },
+       "is_highlight": false
+      },
+      {
+       "day_of_the_week_desc": "화(10/27)",
+       "on_days": {
+        "start_end_time_desc": "11:00 ~ 18:00",
+        "last_order_times_desc": [
+         "17:45 라스트오더"
+        ]
+       },
+       "is_highlight": false
+      },
+      {
+       "day_of_the_week_desc": "수(10/28)",
+       "on_days": {
+        "start_end_time_desc": "11:00 ~ 18:00",
+        "last_order_times_desc": [
+         "17:45 라스트오더"
+        ]
+       },
+       "is_highlight": false
+      },
+      {
+       "day_of_the_week_desc": "목(10/29)",
+       "on_days": {
+        "start_end_time_desc": "11:00 ~ 18:00",
+        "last_order_times_desc": [
+         "17:45 라스트오더"
+        ]
+       },
+       "is_highlight": false
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

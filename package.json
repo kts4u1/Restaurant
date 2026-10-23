@@ -1,0 +1,17 @@
+{
+  "name": "hankki-choijeoga",
+  "version": "1.0.0",
+  "description": "내 주변에서 가장 저렴하게 한 끼를 먹을 수 있는 식당을 가격순으로 찾아주는 앱",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test \"test/*.test.js\"",
+    "import:goodprice": "node scripts/import-goodprice.js"
+  },
+  "engines": {
+    "node": ">=20.12"
+  },
+  "license": "MIT"
+}

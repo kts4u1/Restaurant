@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>한끼 최저가</title>
+  <meta name="description" content="내 주변에서 가장 저렴하게 한 끼 먹을 수 있는 식당을 가격순으로 찾아줍니다." />
+  <meta name="theme-color" content="#d9480f" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <h1><span aria-hidden="true">🍚</span> 한끼 최저가</h1>
+    <p>내 주변에서 가장 싸게 한 끼 먹을 수 있는 곳을 가격순으로</p>
+  </header>
+
+  <main>
+    <div id="notice" class="notice" role="status" hidden></div>
+
+    <!-- 1. 내 주변 검색 -->
+    <section class="card" aria-labelledby="nearby-title">
+      <h2 id="nearby-title">내 주변에서 찾기</h2>
+      <form id="nearby-form" novalidate>
+        <div class="grid-2">
+          <div class="field">
+            <label for="people">인원 (명)</label>
+            <div class="stepper">
+              <button type="button" class="step" data-target="people" data-step="-1" aria-label="인원 줄이기">−</button>
+              <input id="people" type="number" inputmode="numeric" min="1" max="30" value="1" />
+              <button type="button" class="step" data-target="people" data-step="1" aria-label="인원 늘리기">+</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="budget">금액 (예산)</label>
+            <div class="budget">
+              <input id="budget" type="number" inputmode="numeric" min="0" step="1000" placeholder="제한 없음" />
+              <select id="budget-mode" aria-label="예산 기준">
+                <option value="total">총액</option>
+                <option value="person">1인당</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="radius">주변 반경</label>
+          <div class="radius-picker" data-input="radius">
+            <button type="button" data-value="100">100m</button>
+            <button type="button" data-value="200">200m</button>
+            <button type="button" data-value="300">300m</button>
+            <button type="button" data-value="500">500m</button>
+            <button type="button" data-value="1000">1km</button>
+            <span class="custom"><input id="radius" type="number" inputmode="numeric" min="50" max="2000" step="50" value="300" aria-label="반경 직접 입력(미터)" /><span class="unit">m</span></span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn primary" id="nearby-btn">📍 검색</button>
+        <p class="hint">그냥 누르면 <b>나 1명 · 반경 300m</b>로 지금 위치 주변을 찾습니다.</p>
+      </form>
+    </section>
+
+    <!-- 2. 위치 입력 검색 -->
+    <section class="card" aria-labelledby="place-title">
+      <h2 id="place-title">다른 위치에서 찾기</h2>
+      <form id="place-form" novalidate>
+        <div class="field">
+          <label for="place-query">위치</label>
+          <input id="place-query" type="search" enterkeyhint="search" autocomplete="off"
+            placeholder="예: 강남역, 시청역, 서울 중구 세종대로 110" />
+        </div>
+        <div class="field">
+          <label for="place-radius">그 위치 주변 반경</label>
+          <div class="radius-picker" data-input="place-radius">
+            <button type="button" data-value="100">100m</button>
+            <button type="button" data-value="200">200m</button>
+            <button type="button" data-value="300">300m</button>
+            <button type="button" data-value="500">500m</button>
+            <button type="button" data-value="1000">1km</button>
+            <span class="custom"><input id="place-radius" type="number" inputmode="numeric" min="50" max="2000" step="50" value="300" aria-label="반경 직접 입력(미터)" /><span class="unit">m</span></span>
+          </div>
+        </div>
+        <button type="submit" class="btn secondary" id="place-btn">🔎 이 위치 주변 검색</button>
+        <p class="hint">인원과 금액은 위에 입력한 값을 같이 씁니다.</p>
+      </form>
+      <div id="candidates" class="candidates" hidden></div>
+    </section>
+
+    <!-- 결과 -->
+    <section id="results-section" class="results-section" hidden aria-live="polite">
+      <div class="results-head">
+        <h2 id="summary-title">검색 결과</h2>
+        <p id="summary" class="summary"></p>
+        <div id="progress" class="progress" hidden>
+          <div class="bar"><span></span></div>
+          <small></small>
+        </div>
+      </div>
+
+      <div class="filters">
+        <div id="group-chips" class="chips" role="group" aria-label="종류"></div>
+        <div class="toggles">
+          <label class="toggle"><input type="checkbox" id="only-real" /> 확인된 가격만</label>
+          <label class="toggle"><input type="checkbox" id="hide-closed" /> 지금 영업 안 하는 곳 빼기</label>
+          <label class="toggle"><input type="checkbox" id="include-bars" /> 술집·카페 포함</label>
+          <button type="button" id="map-toggle" class="btn small">🗺 지도 보기</button>
+        </div>
+      </div>
+
+      <div id="map" class="map" hidden></div>
+      <ol id="results" class="results"></ol>
+      <p id="empty" class="empty" hidden></p>
+      <button type="button" id="more" class="btn ghost" hidden>더 보기</button>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p><b>가격은 어디서 오나요?</b></p>
+    <ul>
+      <li><span class="src src-user">직접 확인</span> 내가 직접 입력한 가격 (가장 우선)</li>
+      <li><span class="src src-menu">카카오맵 메뉴</span> 식당이 카카오맵에 올린 메뉴판 가격</li>
+      <li><span class="src src-goodprice">착한가격업소</span> 행정안전부·지자체 착한가격업소 공공데이터</li>
+      <li><span class="src src-estimate">추정</span> 메뉴 정보가 없는 곳은 업종별 평균 가격으로 추정</li>
+    </ul>
+    <p class="muted">음료·공기밥·사리 같은 추가 메뉴와 어린이 요금은 빼고, 1인분 식사 중 가장 싼 메뉴를 기준으로 계산합니다. 실제 가격은 방문 전에 한 번 더 확인해 주세요.</p>
+  </footer>
+
+  <dialog id="menu-dialog" aria-labelledby="menu-title">
+    <div class="dlg-head">
+      <h3 id="menu-title" tabindex="-1"></h3>
+      <p id="menu-sub" class="muted"></p>
+    </div>
+    <ul id="menu-list" class="menu-list"></ul>
+    <form method="dialog" class="dialog-actions"><button class="btn small" value="close">닫기</button></form>
+  </dialog>
+
+  <dialog id="price-dialog">
+    <form id="price-form" method="dialog">
+      <h3>가격 직접 입력</h3>
+      <p id="price-place" class="muted"></p>
+      <div class="field">
+        <label for="price-menu">메뉴 이름</label>
+        <input id="price-menu" type="text" maxlength="100" placeholder="예: 김치찌개" />
+      </div>
+      <div class="field">
+        <label for="price-amount">1인 가격 (원)</label>
+        <input id="price-amount" type="number" inputmode="numeric" min="100" step="100" required />
+      </div>
+      <div class="dialog-actions">
+        <button type="button" id="price-delete" class="btn small ghost" hidden>입력 지우기</button>
+        <button value="cancel" class="btn small ghost" formnovalidate>취소</button>
+        <button id="price-save" value="save" class="btn small primary">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin="" defer></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
