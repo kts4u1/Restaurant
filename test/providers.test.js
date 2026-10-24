@@ -204,13 +204,31 @@ test('OpenStreetMap: 첫 서버가 안 되면 다음 서버 응답을 쓴다', a
   await assert.rejects(allBad.searchFoodPlaces({ ...CENTER, radius: 300 }), /OpenStreetMap 서버에 연결하지 못했습니다/);
 });
 
-test('카카오: 요청 수 상한을 넘지 않고, 못 다 모으면 일부만이라고 알린다', async () => {
+test('카카오: 요청 수 상한에 걸리면 남은 일을 넘겨주고, 이어 부르면 빠짐없이 모은다', async () => {
   const all = makePlaces(400);
+  const expected = all.filter((d) => distanceMeters(CENTER.lat, CENTER.lng, d.y, d.x) <= 300).length;
   const { fetchImpl, calls } = fakeKakao(all);
   const kakao = createKakaoLocal({ apiKey: 'test-key', baseUrl: 'http://kakao.test', fetchImpl, maxRequests: 12 });
-  const { places, truncated, requests } = await kakao.searchFoodPlaces({ ...CENTER, radius: 300 });
-  assert.ok(calls.length <= 12, String(calls.length));
-  assert.equal(requests, calls.length);
-  assert.equal(truncated, true);
-  assert.ok(places.length > 0);
+  const ids = new Set();
+  let continuation = null;
+  let rounds = 0;
+  do {
+    const before = calls.length;
+    const r = await kakao.searchFoodPlaces({ ...CENTER, radius: 300, continuation });
+    assert.ok(calls.length - before <= 12, '한 번에 12번을 넘지 않음');
+    assert.equal(r.truncated, false);
+    for (const p of r.places) ids.add(p.id);
+    continuation = r.continuation;
+    rounds++;
+    if (continuation) assert.ok(JSON.stringify(continuation).length < 2000, '이어받기 정보는 짧게');
+  } while (continuation && rounds < 50);
+  assert.ok(rounds > 1, '여러 번에 나눠 모음');
+  assert.equal(ids.size, expected, '반경 안 식당을 하나도 빠뜨리지 않아야 함');
+});
+
+test('카카오: 잘못된 이어받기 정보는 거절', async () => {
+  const { fetchImpl } = fakeKakao([]);
+  const kakao = createKakaoLocal({ apiKey: 'test-key', baseUrl: 'http://kakao.test', fetchImpl });
+  await assert.rejects(kakao.searchFoodPlaces({ ...CENTER, radius: 300, continuation: ['c:9:1'] }), /이어받기/);
+  await assert.rejects(kakao.searchFoodPlaces({ ...CENTER, radius: 300, continuation: 'x' }), /이어받기/);
 });

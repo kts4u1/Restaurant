@@ -238,23 +238,49 @@ async function runSearch({ lat, lng, radius, label }) {
   $('#progress').hidden = true;
   section.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-  let data;
-  try {
-    data = await api(`api/places?lat=${lat}&lng=${lng}&radius=${radius}`);
-  } catch (err) {
+  // 식당이 많으면 서버가 한 번에 다 못 모아서 '이어서 모을 곳'(continuation)을 준다 → 끝날 때까지 다시 요청
+  const base = `api/places?lat=${lat}&lng=${lng}&radius=${radius}`;
+  let continuation = null;
+  let rounds = 0;
+  state.warnings = [];
+  do {
+    let data;
+    try {
+      data = await api(continuation ? `${base}&cont=${encodeURIComponent(JSON.stringify(continuation))}` : base);
+    } catch (err) {
+      if (id !== state.searchId) return;
+      if (!state.places.size) {
+        $('#summary').textContent = '';
+        notice(esc(err.message), 'error');
+        return;
+      }
+      state.warnings.push('식당을 끝까지 다 모으지 못했습니다: ' + err.message);
+      break;
+    }
     if (id !== state.searchId) return;
-    $('#summary').textContent = '';
-    notice(esc(err.message), 'error');
-    return;
-  }
-  if (id !== state.searchId) return;
-  state.provider = data.provider;
-  state.warnings = data.warnings || [];
-  for (const p of data.places) putPlace(p);
+    state.provider = data.provider;
+    for (const w of data.warnings || []) if (!state.warnings.includes(w)) state.warnings.push(w);
+    for (const p of data.places) if (!state.places.has(p.id)) putPlace(p);
+    dropDuplicateGoodPrice();
+    continuation = data.continuation;
+    rounds++;
+    if (continuation) {
+      $('#summary').innerHTML = `<span class="spin"></span> 주변 식당을 모으는 중… ${fmt(state.places.size)}곳`;
+    }
+  } while (continuation && rounds < 15);
+  if (continuation) state.warnings.push('식당이 아주 많아 일부는 빠졌을 수 있습니다. 반경을 줄이면 더 정확합니다.');
   if (state.warnings.length) notice(state.warnings.map(esc).join('<br>'));
   render();
   updateMap();
   loadDetails(id);
+}
+
+/** 지도 데이터에 있는 식당과 같은 착한가격업소가 따로 들어와 있으면 하나만 남긴다 */
+function dropDuplicateGoodPrice() {
+  for (const p of state.places.values()) {
+    const gpId = p.goodprice?.id;
+    if (gpId && gpId !== p.id && state.places.has(gpId)) state.places.delete(gpId);
+  }
 }
 
 /* ---------- 카카오맵 메뉴 가격 불러오기 ---------- */
@@ -292,6 +318,7 @@ async function loadDetails(id) {
         const { results } = await api('api/details', { method: 'POST', body: { places: batch.map(minimal) } });
         if (id !== state.searchId) return;
         for (const place of Object.values(results)) putPlace(place);
+        dropDuplicateGoodPrice();
       } catch {
         for (const p of batch) state.places.set(p.id, { ...state.places.get(p.id), detailStatus: 'failed' });
       }

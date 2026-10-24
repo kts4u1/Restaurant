@@ -59,7 +59,7 @@ export function createSearchService({
       ...rest,
       group: key,
       groupLabel: label,
-      goodprice: gp ? { name: gp.name, date: gp.date, menus: gp.menus } : null,
+      goodprice: gp ? { id: gp.id, name: gp.name, date: gp.date, menus: gp.menus } : null,
       price,
       menu: menuWithFlags(det?.menu?.length ? det.menu : gp?.menus || [], context),
       menuUpdatedAt: det?.menuUpdatedAt || null,
@@ -68,9 +68,10 @@ export function createSearchService({
     };
   }
 
-  async function collect({ lat, lng, radius }) {
+  async function collect({ lat, lng, radius, continuation = null }) {
+    // 끝까지 다 모은 결과만 저장해 둔다
     const key = `${lat.toFixed(4)},${lng.toFixed(4)},${radius}`;
-    const cached = placesCache.get(key);
+    const cached = continuation ? null : placesCache.get(key);
     if (cached) return cached;
 
     const warnings = [];
@@ -78,10 +79,11 @@ export function createSearchService({
     let provider = null;
     for (const p of [primary, fallback].filter(Boolean)) {
       try {
-        result = await p.searchFoodPlaces({ lat, lng, radius });
+        result = await p.searchFoodPlaces({ lat, lng, radius, continuation });
         provider = p.name;
         break;
       } catch (err) {
+        if (continuation) throw err; // 이어 모으기는 같은 곳(카카오)에서만
         warnings.push(err.message);
       }
     }
@@ -91,13 +93,16 @@ export function createSearchService({
       throw err;
     }
     if (result.truncated) warnings.push('식당이 아주 많아 일부 구역은 다 못 가져왔을 수 있습니다. 반경을 줄이면 더 정확합니다.');
-    const value = { provider, places: result.places, warnings };
-    placesCache.set(key, value);
+    const value = { provider, places: result.places, warnings, continuation: result.continuation || null };
+    if (!continuation && !value.continuation) placesCache.set(key, value);
     return value;
   }
 
-  async function findPlaces({ lat, lng, radius }) {
-    const { provider, places: found, warnings } = await collect({ lat, lng, radius });
+  /**
+   * continuation 이 돌아오면 아직 덜 모은 것 → 같은 위치·반경으로 continuation 을 넘겨 다시 부르면 이어서 모은다.
+   */
+  async function findPlaces({ lat, lng, radius, continuation = null }) {
+    const { provider, places: found, warnings, continuation: next } = await collect({ lat, lng, radius, continuation });
     const places = [...found];
 
     // 착한가격업소: 검색된 식당과 연결하고, 지도 데이터에 없는 업소는 따로 추가
@@ -107,7 +112,7 @@ export function createSearchService({
       places[i] = { ...places[i], goodprice: gp };
       if (gp) matched.add(gp.id);
     }
-    for (const e of goodprice.nearby(lat, lng, radius)) {
+    for (const e of continuation ? [] : goodprice.nearby(lat, lng, radius)) {
       if (matched.has(e.id)) continue;
       places.push({
         id: e.id,
@@ -134,6 +139,7 @@ export function createSearchService({
       center: { lat, lng },
       radius,
       warnings,
+      continuation: next,
       places: places.map((p) => enrich(p)),
     };
   }

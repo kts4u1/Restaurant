@@ -67,7 +67,15 @@ export function createApi({ config, getServices, setKey = null, keySource = 'loc
       if (!Number.isFinite(radius) || radius < config.minRadius || radius > config.maxRadius) {
         throw httpError(400, `반경은 ${config.minRadius}~${config.maxRadius}m 사이로 입력해 주세요.`);
       }
-      return service.findPlaces({ lat, lng, radius });
+      let continuation = null;
+      if (q.get('cont')) {
+        try {
+          continuation = JSON.parse(q.get('cont'));
+        } catch {
+          throw httpError(400, '잘못된 이어받기 정보입니다.');
+        }
+      }
+      return service.findPlaces({ lat, lng, radius, continuation });
     }
 
     if (route === 'POST /api/details') {

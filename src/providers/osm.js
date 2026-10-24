@@ -93,7 +93,8 @@ export function createOsm({ overpassUrls, nominatimUrl, userAgent, fetchImpl = f
   }
 
   /** 첫 서버가 늦으면 몇 초 뒤 다음 서버에도 물어보고, 먼저 온 답을 쓴다 */
-  async function searchFoodPlaces({ lat, lng, radius }) {
+  async function searchFoodPlaces({ lat, lng, radius, continuation = null }) {
+    if (continuation) throw Object.assign(new Error('이어 모으기는 카카오 검색에서만 됩니다.'), { status: 400 });
     const query = `[out:json][timeout:25];nwr(around:${Math.round(radius)},${lat},${lng})["amenity"~"^(restaurant|fast_food|food_court)$"];out center tags;`;
     let settled = false;
     const attempts = overpassUrls.map(
