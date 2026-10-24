@@ -98,3 +98,11 @@ test('카카오맵 사용 설정이 꺼진 키는 저장하고 안내', async ()
   assert.equal(r.status, 200);
   assert.match(r.body.warning, /카카오맵\(로컬\) 사용 설정/);
 });
+
+test('터널(외부 https 주소)로 들어온 요청은 키를 바꿀 수 없다', async () => {
+  const headers = { 'Content-Type': 'application/json', 'cf-connecting-ip': '203.0.113.5', 'x-forwarded-for': '203.0.113.5' };
+  const res = await fetch(base + '/api/kakao-key', { method: 'POST', headers, body: JSON.stringify({ key: GOOD }) });
+  assert.equal(res.status, 403);
+  const s = await (await fetch(base + '/api/status', { headers })).json();
+  assert.equal(s.canEditKey, false);
+});

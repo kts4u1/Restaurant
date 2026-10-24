@@ -84,7 +84,14 @@ export function buildServices(config, { fetchImpl = fetch } = {}) {
   return { kakao, osm, placeDetail, goodprice, estimates, service };
 }
 
-const isLocalRequest = (req) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket?.remoteAddress);
+// 이 컴퓨터에서 직접 연 요청인지 (터널·프록시를 거쳐 들어온 요청은 주소가 127.0.0.1 이어도 외부로 본다)
+const isLocalRequest = (req) => {
+  if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket?.remoteAddress)) return false;
+  const h = req.headers || {};
+  if (h['x-forwarded-for'] || h['x-forwarded-host'] || h['cf-connecting-ip'] || h['forwarded'] || h['x-real-ip']) return false;
+  const host = String(h.host || '').replace(/:\d+$/, '').replace(/^\[|\]$/g, '');
+  return ['localhost', '127.0.0.1', '::1'].includes(host);
+};
 
 /**
  * @param {object} options
