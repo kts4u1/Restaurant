@@ -576,6 +576,77 @@ function showPriceForm(p) {
   $('#price-dialog').showModal();
 }
 
+/* ---------- 카카오 키 ---------- */
+function keyMsg(text, type = '') {
+  const el = $('#key-msg');
+  el.className = 'key-msg' + (type ? ' ' + type : '');
+  el.innerHTML = text;
+}
+
+function showKeyCard(byUser = false) {
+  const s = state.status || {};
+  const card = $('#key-card');
+  card.hidden = false;
+  $('#key-close').hidden = !s.kakao;
+  const canEdit = s.canEditKey !== false;
+  $('#key-input').disabled = !canEdit;
+  $('#key-save').disabled = !canEdit;
+  if (!canEdit) {
+    keyMsg('키는 서버를 켠 컴퓨터에서 <b>http://localhost:' + (location.port || 3000) + '</b> 으로 열어서 넣어 주세요.', 'err');
+  } else if (s.kakao) {
+    keyMsg(`지금 쓰는 키: <code>${esc(s.keyMasked)}</code> — 바꾸려면 새 키를 넣고 저장하세요.`);
+  } else keyMsg('');
+  if (byUser) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (canEdit) $('#key-input').focus();
+  }
+}
+
+async function saveKey(e) {
+  e.preventDefault();
+  const key = $('#key-input').value.trim();
+  if (!key) {
+    keyMsg('키를 붙여넣어 주세요.', 'err');
+    $('#key-input').focus();
+    return;
+  }
+  $('#key-save').disabled = true;
+  keyMsg('<span class="spin"></span> 카카오에 키를 확인하는 중…');
+  try {
+    const r = await api('/api/kakao-key', { method: 'POST', body: { key } });
+    $('#key-input').value = '';
+    await loadStatus();
+    if (r.warning) {
+      keyMsg(`저장했습니다. 다만 확인할 것이 있어요: ${esc(r.warning)}`, 'err');
+      $('#key-card').hidden = false;
+    } else {
+      keyMsg(`✔ 저장했습니다 (<code>${esc(r.keyMasked)}</code>). 이제 위에서 검색하면 카카오 데이터로 찾습니다.`, 'ok');
+      $('#key-card').hidden = false;
+      $('#key-close').hidden = false;
+    }
+  } catch (err) {
+    keyMsg(esc(err.message), 'err');
+  } finally {
+    $('#key-save').disabled = false;
+  }
+}
+
+async function loadStatus() {
+  try {
+    const s = await api('/api/status');
+    state.status = s;
+    $('#key-status').textContent = s.kakao ? `(현재 키 ${s.keyMasked})` : '(아직 키 없음)';
+    if (!s.kakao) {
+      showKeyCard();
+      notice('카카오 API 키를 넣기 전까지는 <b>OpenStreetMap</b> 데이터로 검색해서 식당 수와 가격 정보가 적습니다. 아래 칸에 키를 넣어 주세요.');
+    } else if ($('#notice').textContent.includes('카카오 API 키를 넣기 전')) {
+      notice('');
+    }
+  } catch {
+    notice('서버에 연결하지 못했습니다. 서버가 켜져 있는지 확인해 주세요.', 'error');
+  }
+}
+
 /* ---------- 이벤트 ---------- */
 function init() {
   // 저장된 값 복원
@@ -684,16 +755,12 @@ function init() {
     render();
   });
 
-  api('/api/status')
-    .then((s) => {
-      state.status = s;
-      if (!s.kakao) {
-        notice(
-          '카카오 API 키가 아직 설정되지 않아 <b>OpenStreetMap</b> 데이터로 검색합니다. 식당 수와 가격 정보가 적을 수 있어요. 정확한 검색을 위해 README의 "카카오 키 설정"을 따라 주세요.',
-        );
-      }
-    })
-    .catch(() => notice('서버에 연결하지 못했습니다. 서버가 켜져 있는지 확인해 주세요.', 'error'));
+  // 카카오 키 넣기
+  $('#key-open').addEventListener('click', () => showKeyCard(true));
+  $('#key-close').addEventListener('click', () => ($('#key-card').hidden = true));
+  $('#key-form').addEventListener('submit', saveKey);
+
+  loadStatus();
 
   if ('serviceWorker' in navigator && window.isSecureContext) {
     navigator.serviceWorker.register('sw.js').catch(() => {});

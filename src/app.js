@@ -8,6 +8,7 @@ import { createEstimator } from './pricing.js';
 import { createSearchService } from './search.js';
 import { createCache, readJsonFile } from './util.js';
 import { isValidLatLng } from './geo.js';
+import { isValidKeyFormat, maskKey, verifyKey, writeEnvKey } from './kakaoKey.js';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -33,17 +34,6 @@ function sendJson(res, status, body) {
 }
 
 async function readBody(req, limit = 512 * 1024) {
-  // Vercel 함수에서는 본문이 이미 읽혀 req.body 에 들어 있다
-  if (req.body !== undefined) {
-    if (typeof req.body === 'string') {
-      try {
-        return JSON.parse(req.body || '{}');
-      } catch {
-        throw httpError(400, '잘못된 요청 형식입니다.');
-      }
-    }
-    return req.body || {};
-  }
   let size = 0;
   const chunks = [];
   for await (const chunk of req) {
@@ -94,11 +84,19 @@ export function buildServices(config, { fetchImpl = fetch } = {}) {
   return { kakao, osm, placeDetail, goodprice, estimates, service };
 }
 
-export function createHandler(config, services) {
-  const { kakao, osm, placeDetail, goodprice, estimates, service } = services;
+const isLocalRequest = (req) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket?.remoteAddress);
+
+/**
+ * @param {object} options
+ * @param {(key: string) => object} [options.rebuild] 새 카카오 키로 서비스를 다시 만든다
+ * @param {Function} [options.fetchImpl]
+ */
+export function createHandler(config, initialServices, { rebuild, fetchImpl = fetch } = {}) {
+  let services = initialServices;
   const publicDir = path.resolve(config.publicDir);
 
   async function geocode(q) {
+    const { kakao, osm } = services;
     const warnings = [];
     for (const g of [kakao, osm].filter(Boolean)) {
       try {
@@ -114,10 +112,13 @@ export function createHandler(config, services) {
   async function api(req, res, url) {
     const route = `${req.method} ${url.pathname}`;
     const q = url.searchParams;
+    const { kakao, placeDetail, goodprice, estimates, service } = services;
 
     if (route === 'GET /api/status') {
       return sendJson(res, 200, {
         kakao: Boolean(kakao),
+        keyMasked: maskKey(config.kakaoRestKey),
+        canEditKey: Boolean(rebuild) && isLocalRequest(req),
         provider: kakao ? 'kakao' : 'osm',
         menuFetch: placeDetail.enabled,
         goodpriceCount: goodprice.size,
@@ -153,6 +154,22 @@ export function createHandler(config, services) {
         .map((p) => Object.fromEntries(PLACE_FIELDS.filter((f) => p[f] !== undefined).map((f) => [f, p[f]])))
         .map((p) => (p.kakaoId !== undefined && !/^\d{1,15}$/.test(String(p.kakaoId)) ? { ...p, kakaoId: undefined } : p));
       return sendJson(res, 200, { results: await service.details(places) });
+    }
+
+    if (route === 'POST /api/kakao-key') {
+      if (!rebuild) throw httpError(404, '없는 주소입니다.');
+      if (!isLocalRequest(req)) {
+        throw httpError(403, '카카오 키는 서버를 켠 컴퓨터에서 http://localhost:' + config.port + ' 으로 열어서 넣어 주세요.');
+      }
+      const key = String((await readBody(req)).key || '').trim();
+      if (!isValidKeyFormat(key)) {
+        throw httpError(400, '키 형식이 맞지 않습니다. 카카오 개발자 사이트의 [앱 키]에서 "REST API 키"를 그대로 복사해 붙여넣어 주세요.');
+      }
+      const { warning } = await verifyKey(key, { baseUrl: config.kakaoApiBase, fetchImpl });
+      writeEnvKey(config.envFile, key, config.envTemplate);
+      config.kakaoRestKey = key;
+      services = rebuild(key);
+      return sendJson(res, 200, { ok: true, keyMasked: maskKey(key), warning });
     }
 
     throw httpError(404, '없는 주소입니다.');

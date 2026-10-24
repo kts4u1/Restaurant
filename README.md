@@ -16,54 +16,32 @@
 
 ---
 
-## Vercel에 올리기 (휴대폰에서 바로 쓰기, 추천)
+## 시작하기 (처음 한 번)
 
-Vercel에 올리면 `https://…vercel.app` 주소가 생겨서 **휴대폰에서도 현재 위치(GPS)로 바로 검색**됩니다. 컴퓨터를 켜 둘 필요도 없습니다.
-카카오 키는 Vercel의 환경변수에 넣고, 앱의 서버 함수(`api/` 폴더)가 그 키로 카카오에서 데이터를 가져옵니다. 키는 휴대폰 화면 쪽으로 보내지 않습니다.
+**1. Node.js 설치** — [nodejs.org](https://nodejs.org)에서 **LTS** 버전을 받아 기본값으로 설치합니다. (다른 프로그램은 필요 없습니다)
 
-1. [vercel.com](https://vercel.com) 로그인 → **Add New… → Project** → GitHub의 `kts4u1/Restaurant` 선택 → **Import**
-2. 설정 화면에서
-   - **Framework Preset**: `Other` (나머지 빌드 설정은 비워 두면 `vercel.json`이 알아서 처리)
-   - **Environment Variables**: Name `KAKAO_REST_API_KEY`, Value 에 카카오 **REST API 키** → **Add**
-3. **Deploy** → 1분쯤 뒤 나오는 `https://….vercel.app` 주소를 휴대폰에서 열고 "홈 화면에 추가"
+**2. 프로젝트 받기** — 이 저장소 페이지에서 초록색 **`<> Code` → Download ZIP** 을 눌러 받고 압축을 풉니다.
 
-- 이미 쓰던 Vercel 프로젝트에 키를 넣어 두었다면, 그 프로젝트의 **Settings → Git**에서 이 저장소를 연결하거나 위처럼 새 프로젝트를 만들고 키를 다시 넣으세요. 환경변수는 프로젝트마다 따로입니다.
-- 키 이름은 `KAKAO_REST_API_KEY`(또는 `KAKAO_API_KEY`, `KAKAO_REST_KEY`)여야 합니다.
-- 환경변수를 넣거나 바꾼 뒤에는 **Deployments → … → Redeploy**를 해야 적용됩니다.
-- 제대로 연결됐는지는 `https://내주소.vercel.app/api/status` 를 열어 `"kakao":true` 인지 보면 됩니다.
-- Vercel은 기본 브랜치(main)를 정식 주소로 배포합니다. 다른 브랜치에 올린 코드는 미리보기(Preview) 주소로 배포되고, 환경변수를 넣을 때 **Preview**에도 체크해야 그 주소에서 키를 씁니다.
-- 함수는 서울 리전(`icn1`)에서 실행되도록 `vercel.json`에 설정해 두었습니다.
+**3. 실행** — 압축 푼 폴더에서 더블클릭합니다. 서버가 켜지고 브라우저가 자동으로 열립니다.
+   - 윈도우: **`start-windows.bat`**
+   - 맥: **`start-mac.command`** (처음에 "확인되지 않은 개발자" 경고가 나오면 파일을 오른쪽 클릭 → **열기**)
 
-## 내 컴퓨터에서 실행하기
+**4. 카카오 키 넣기** — 앱 화면 맨 위 **🔑 카카오 API 키 넣기** 칸에 REST API 키를 붙여넣고 **저장**합니다.
+   - 키가 맞는지 카카오에 바로 확인한 뒤 이 컴퓨터의 `.env` 파일에 저장하고, 서버를 다시 켜지 않아도 **즉시 적용**됩니다.
+   - 키 받는 곳: [카카오 개발자](https://developers.kakao.com/console/app) → 내 애플리케이션 → (없으면 애플리케이션 추가하기) → 내 앱 → **앱 키** → **REST API 키**
+   - "카카오맵(로컬) 사용 설정이 꺼져 있습니다"라는 안내가 나오면 개발자 사이트의 앱 설정에서 **카카오맵** 사용 설정을 켜 주세요.
+   - 나중에 키를 바꾸려면 화면 맨 아래 **🔑 카카오 API 키 넣기 / 바꾸기** 버튼을 누르세요.
 
-필요한 것: [Node.js](https://nodejs.org) 20.12 이상 (설치할 다른 패키지는 없습니다)
+다음부터는 3번(더블클릭)만 하면 됩니다. 끌 때는 검은 창에서 **Ctrl + C** 를 누르거나 창을 닫습니다.
 
-```bash
-git clone https://github.com/kts4u1/Restaurant.git
-cd Restaurant
-cp .env.example .env      # 그리고 .env 파일에 카카오 키 입력 (아래 참고)
-npm start
-```
-
-브라우저에서 **http://localhost:3000** 을 엽니다.
-
-### 카카오 키 설정 (무료, 꼭 권장)
-
-식당을 빠짐없이 찾으려면 카카오 로컬 API 키가 필요합니다. 키가 없으면 OpenStreetMap 데이터로 대신 검색하는데,
-한국은 등록된 식당이 훨씬 적습니다.
-
-1. [카카오 개발자](https://developers.kakao.com) 로그인 → **내 애플리케이션** → **애플리케이션 추가하기**
-2. 만든 앱의 **앱 키**에서 **REST API 키**를 복사
-3. `.env` 파일의 `KAKAO_REST_API_KEY=` 뒤에 붙여넣기 → 서버 다시 시작
-4. 검색할 때 "카카오맵(로컬) 사용 설정이 꺼져 있습니다"라고 나오면, 개발자 콘솔의 앱 설정에서 **카카오맵** 사용 설정을 켜 주세요.
+> 명령어로 실행해도 됩니다: 폴더에서 `npm start` → 브라우저로 http://localhost:3000
 
 ### 휴대폰에서 쓰기
 
-- 서버를 켠 컴퓨터와 **같은 와이파이**에 있는 휴대폰에서, 서버 시작 시 화면에 나오는 `http://192.168.x.x:3000` 주소로 접속할 수 있습니다.
+- 서버를 켠 컴퓨터와 **같은 와이파이**에 있는 휴대폰에서, 서버 시작 시 검은 창에 나오는 `http://192.168.x.x:3000` 주소로 접속할 수 있습니다. (카카오 키는 컴퓨터에서만 넣을 수 있습니다)
 - 단, 휴대폰 브라우저는 **https 주소에서만 현재 위치(GPS)**를 허용합니다. http 주소에서는 "다른 위치에서 찾기"에 위치를 직접 입력해 쓰거나,
   아래 방법 중 하나로 https 주소를 만드세요.
   - [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/): `cloudflared tunnel --url http://localhost:3000` → 나오는 `https://….trycloudflare.com` 주소로 접속
-  - Render, Railway, Fly.io 같은 Node.js 호스팅에 올리기 (시작 명령 `npm start`, 환경변수 `KAKAO_REST_API_KEY` 설정)
 - 접속한 뒤 브라우저 메뉴에서 **홈 화면에 추가**하면 앱 아이콘이 생깁니다.
 
 ---
@@ -125,7 +103,7 @@ npm run import:goodprice -- --geocode 받은파일.csv
 
 | 이름 | 기본값 | 설명 |
 | --- | --- | --- |
-| `KAKAO_REST_API_KEY` | (없음) | 카카오 REST API 키 |
+| `KAKAO_REST_API_KEY` | (없음) | 카카오 REST API 키 (앱 화면에서 넣으면 자동으로 저장됨) |
 | `PORT` | 3000 | 서버 포트 |
 | `ENABLE_MENU_FETCH` | true | 카카오맵 메뉴 가격 가져오기 |
 | `MENU_CONCURRENCY` | 4 | 메뉴를 동시에 몇 곳씩 가져올지 |
@@ -141,7 +119,6 @@ npm run import:goodprice -- --geocode 받은파일.csv
 - 메뉴판 가격은 식당이 갱신하지 않으면 오래된 가격일 수 있어 기준 날짜를 함께 보여줍니다. 방문 전에 한 번 더 확인해 주세요.
 - 점심 특선·평일 한정 가격도 메뉴판에 있으면 최저가로 잡힙니다. 최소 주문 인원(2인분부터 등)은 반영하지 않습니다.
 - "가격 입력"으로 저장한 내 가격은 지금 쓰는 브라우저에만 저장됩니다(다른 휴대폰·브라우저와 공유되지 않음).
-- Vercel에서는 메뉴 정보 저장(캐시)이 함수가 다시 시작될 때마다 비워져서, 가끔 첫 검색이 조금 더 걸릴 수 있습니다.
 - 영업 정보는 1시간 안에 확인한 것만 "영업 중/종료"로 표시합니다.
 - 거리는 직선거리이며, 도보 시간은 분당 67m 기준입니다.
 
@@ -162,8 +139,8 @@ src/goodprice.js          착한가격업소 CSV 읽기와 식당 연결
 src/providers/kakaoLocal.js   카카오 로컬 API (식당이 많으면 영역을 나눠 전부 수집)
 src/providers/kakaoPlace.js   카카오맵 메뉴·영업시간
 src/providers/osm.js          카카오 키가 없을 때 OpenStreetMap
-api/                      Vercel 서버 함수 (status, places, details, geocode)
-src/vercel.js             Vercel 함수 공통 진입점
+src/kakaoKey.js           앱 화면에서 넣은 카카오 키 확인·저장
+start-windows.bat, start-mac.command   더블클릭 실행 파일
 public/                   화면 (HTML/CSS/JS, PWA)
 data/price-estimates.json 업종별 추정 가격
 scripts/import-goodprice.js   착한가격업소 가져오기
@@ -177,3 +154,4 @@ scripts/import-goodprice.js   착한가격업소 가져오기
 | `POST /api/details` `{ places: [...] }` | 카카오맵 메뉴·영업시간을 가져와 가격 다시 계산 (최대 30곳) |
 | `GET /api/geocode?q=` | 위치 이름/주소 → 좌표 후보 |
 | `GET /api/status` | 설정 상태 |
+| `POST /api/kakao-key` `{ key }` | 카카오 키 확인 후 `.env`에 저장 (서버 컴퓨터에서만 가능) |

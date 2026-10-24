@@ -21,6 +21,26 @@
   <main>
     <div id="notice" class="notice" role="status" hidden></div>
 
+    <!-- 카카오 키 넣기 (처음 한 번) -->
+    <section class="card key-card" id="key-card" aria-labelledby="key-title" hidden>
+      <h2 id="key-title">🔑 카카오 API 키 넣기</h2>
+      <p class="key-help">
+        처음 한 번만 넣으면 됩니다. 키가 있어야 주변 식당을 빠짐없이 찾을 수 있어요.<br />
+        <a href="https://developers.kakao.com/console/app" target="_blank" rel="noopener">카카오 개발자 사이트</a>
+        → 내 애플리케이션 → 내 앱 → <b>앱 키</b>에서 <b>REST API 키</b>를 복사해 아래에 붙여넣으세요.
+      </p>
+      <form id="key-form" novalidate>
+        <div class="key-row">
+          <input id="key-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"
+            placeholder="REST API 키 붙여넣기" aria-label="카카오 REST API 키" />
+          <button type="submit" class="btn small primary" id="key-save">저장</button>
+        </div>
+      </form>
+      <p id="key-msg" class="key-msg" role="status"></p>
+      <p class="hint">키는 이 컴퓨터의 <code>.env</code> 파일에만 저장되고, 저장하면 바로 적용됩니다.</p>
+      <button type="button" id="key-close" class="btn small ghost" hidden>닫기</button>
+    </section>
+
     <!-- 1. 내 주변 검색 -->
     <section class="card" aria-labelledby="nearby-title">
       <h2 id="nearby-title">내 주변에서 찾기</h2>
@@ -125,6 +145,7 @@
       <li><span class="src src-goodprice">착한가격업소</span> 행정안전부·지자체 착한가격업소 공공데이터</li>
       <li><span class="src src-estimate">추정</span> 메뉴 정보가 없는 곳은 업종별 평균 가격으로 추정</li>
     </ul>
+    <p><button type="button" id="key-open" class="btn small ghost">🔑 카카오 API 키 넣기 / 바꾸기</button> <span id="key-status" class="muted"></span></p>
     <p class="muted">음료·공기밥·사리 같은 추가 메뉴와 어린이 요금은 빼고, 1인분 식사 중 가장 싼 메뉴를 기준으로 계산합니다. 실제 가격은 방문 전에 한 번 더 확인해 주세요.</p>
   </footer>
 
