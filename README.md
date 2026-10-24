@@ -16,27 +16,28 @@
 
 ---
 
-## 휴대폰에서 쓰기: GitHub 시크릿 + Cloudflare (추천)
+## 휴대폰에서 쓰기: GitHub 시크릿 + Cloudflare Pages (추천)
 
-학원비교 앱처럼 키를 **GitHub 시크릿**에 넣고 GitHub Actions가 자동으로 배포합니다. 앱은 무료 **Cloudflare Workers**에서 돌아가서,
-컴퓨터를 켜 둘 필요가 없고 https 주소라 **휴대폰에서 내 위치(GPS) 검색**과 **입력한 위치 주변 검색**이 그때그때 실시간으로 됩니다.
+학원비교 앱처럼 키를 **GitHub 시크릿**에 넣으면 GitHub Actions가 무료 **Cloudflare Pages**에 자동으로 배포합니다 → **https://hankki.pages.dev**
+컴퓨터를 켜 둘 필요가 없고, https 주소라 **휴대폰에서 내 위치(GPS) 검색**과 **입력한 위치 주변 검색**이 그때그때 실시간으로 됩니다.
 카카오 키는 GitHub 시크릿 → Cloudflare 비밀값으로만 옮겨지고, 화면 파일이나 휴대폰에는 가지 않습니다.
 
-1. **카카오 키** — 저장소 **Settings → Secrets and variables → Actions → New repository secret**
-   - `KAKAO_REST_API_KEY` = 카카오 개발자 사이트의 **REST API 키**
-2. **Cloudflare 가입** — [dash.cloudflare.com](https://dash.cloudflare.com/sign-up) (무료). 가입 후 왼쪽 메뉴 **Workers & Pages** 를 한 번 열어 둡니다(처음 열면 `○○.workers.dev` 주소 이름을 정하라고 나오면 정해 주세요).
-3. **Cloudflare 값 두 개를 GitHub 시크릿에 추가**
-   - `CLOUDFLARE_ACCOUNT_ID` = Cloudflare **Workers & Pages** 화면 오른쪽(또는 계정 홈)의 **Account ID**
-   - `CLOUDFLARE_API_TOKEN` = Cloudflare 오른쪽 위 사람 아이콘 → **My Profile → API Tokens → Create Token** → **Edit Cloudflare Workers** 템플릿의 **Use template** → (그대로) **Continue to summary → Create Token** 으로 나온 값
-4. **배포** — 저장소 **Actions → 앱 배포 → Run workflow**. 끝나면 실행 결과 화면 아래 **요약(Summary)** 에 주소가 나옵니다:
-   `https://hankki.○○.workers.dev`
-5. 휴대폰에서 그 주소를 열고 **홈 화면에 추가**하면 앱처럼 쓸 수 있습니다.
+저장소 **Settings → Secrets and variables → Actions → New repository secret** 에 세 개를 넣습니다.
 
-- 코드가 바뀌어 이 브랜치에 올라오면 자동으로 다시 배포됩니다. 키를 바꿨을 때는 4번(Run workflow)을 다시 하세요.
-- Cloudflare 무료 플랜은 하루 10만 번 요청까지라 혼자 쓰기에는 충분합니다. 다만 한 번 검색에서 카카오에 물어볼 수 있는 횟수에 제한이 있어,
+| Name | 값 |
+| --- | --- |
+| `KAKAO_REST_API_KEY` | 카카오 개발자 사이트의 **REST API 키** |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare **Account home** → 계정 이름 옆 **⋯ → Copy account ID** (또는 대시보드 주소 `dash.cloudflare.com/` 뒤의 32자리) |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare 오른쪽 위 사람 아이콘 → **My Profile → API Tokens → Create Token → Custom token(Get started)** → Permissions: `Account` · `Cloudflare Pages` · `Edit` → Account Resources: 내 계정 → **Continue to summary → Create Token** |
+
+그다음 **Actions → 앱 배포 → Run workflow**. 끝나면 실행 결과의 **Summary**에 주소가 나옵니다. 휴대폰에서 열고 **홈 화면에 추가**하세요.
+
+- Cloudflare 에서 **Create application 은 누르지 않아도 됩니다.** Actions가 `hankki` 프로젝트를 자동으로 만듭니다.
+- `hankki` 라는 이름을 다른 사람이 이미 쓰고 있으면 Cloudflare 가 `hankki-○○○.pages.dev` 처럼 뒤에 글자를 붙입니다. 실제 주소는 Summary 에 나옵니다.
+- 코드가 바뀌어 이 브랜치에 올라오면 자동으로 다시 배포됩니다. 키를 바꿨을 때는 **Run workflow** 를 다시 하세요.
+- 무료 플랜은 하루 10만 번 요청까지라 혼자 쓰기에 충분합니다. 다만 검색 한 번에 카카오에 물어볼 수 있는 횟수에 제한이 있어,
   식당이 아주 많은 곳을 넓게(1km 이상) 검색하면 일부만 나올 수 있습니다. 그때는 화면에 안내가 나오니 반경을 줄여 주세요.
 - 주소를 아는 사람은 누구나 열 수 있습니다(검색 엔진에는 안 뜨게 막아 두었습니다). 키는 보이지 않습니다.
-- 앞서 켜 둔 GitHub Pages 는 더 이상 쓰지 않습니다. 원하면 **Settings → Pages** 에서 꺼도 됩니다.
 
 ## 내 컴퓨터에서 켜서 쓰기
 
@@ -167,9 +168,10 @@ src/providers/osm.js          카카오 키가 없을 때 OpenStreetMap
 src/kakaoKey.js           앱 화면에서 넣은 카카오 키 확인·저장
 src/api.js                /api 처리 (PC 서버·Cloudflare 공통)
 src/services.js           검색 서비스 조립 (공통)
-src/worker.js             Cloudflare Workers 진입점
-wrangler.toml             Cloudflare 설정
-.github/workflows/deploy.yml  GitHub 시크릿으로 Cloudflare 에 배포
+src/cloudflare.js         Cloudflare 에서 /api 처리
+functions/api/[[path]].js Cloudflare Pages Functions 진입점
+wrangler.toml             Cloudflare Pages 설정
+.github/workflows/deploy.yml  GitHub 시크릿으로 Cloudflare Pages 에 배포
 start-windows.bat, start-mac.command   더블클릭 실행 파일
 public/                   화면 (HTML/CSS/JS, PWA)
 data/price-estimates.json 업종별 추정 가격

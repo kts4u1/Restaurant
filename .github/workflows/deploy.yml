@@ -1,11 +1,11 @@
-# 앱(화면 + 검색 서버)을 Cloudflare Workers 에 배포한다.
+# 앱(화면 + 검색 서버)을 Cloudflare Pages 에 배포한다 → https://hankki.pages.dev
 # 카카오 키는 GitHub 시크릿 → Cloudflare 비밀값으로만 옮겨지고, 화면 파일에는 들어가지 않는다.
 #
 # 처음 한 번만 설정 (Settings → Secrets and variables → Actions → New repository secret):
 #   KAKAO_REST_API_KEY     카카오 개발자 사이트의 REST API 키
-#   CLOUDFLARE_API_TOKEN   Cloudflare → My Profile → API Tokens → Create Token → "Edit Cloudflare Workers" 템플릿
-#   CLOUDFLARE_ACCOUNT_ID  Cloudflare → Workers & Pages 화면 오른쪽의 Account ID
-# 그다음 Actions → "앱 배포" → Run workflow. 주소는 실행 결과 요약에 나온다 (https://hankki.<내 이름>.workers.dev).
+#   CLOUDFLARE_ACCOUNT_ID  Cloudflare 계정 ID
+#   CLOUDFLARE_API_TOKEN   Cloudflare API 토큰 (권한: Account → Cloudflare Pages → Edit)
+# 그다음 Actions → "앱 배포" → Run workflow. 주소는 실행 결과 요약(Summary)에 나온다.
 name: 앱 배포
 
 on:
@@ -19,6 +19,10 @@ permissions:
 concurrency:
   group: deploy
   cancel-in-progress: false
+
+env:
+  PROJECT: hankki
+  WRANGLER: npx --yes wrangler@4.152.0
 
 jobs:
   deploy:
@@ -48,23 +52,43 @@ jobs:
           done
           exit $missing
 
-      - name: Cloudflare 에 배포
-        id: deploy
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: '4.152.0'
-          command: deploy
-          secrets: |
-            KAKAO_REST_API_KEY
+      - name: Cloudflare Pages 프로젝트 준비 (처음 한 번 만들기)
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if $WRANGLER pages project list 2>&1 | tee list.log | grep -qE "(^|[^a-z0-9-])$PROJECT([^a-z0-9-]|$)"; then
+            echo "프로젝트 $PROJECT 가 이미 있습니다."
+          elif grep -qiE "Authentication|not authorized|10000|9109" list.log; then
+            echo "::error::Cloudflare API 토큰 권한이 부족합니다. 토큰에 Account → Cloudflare Pages → Edit 권한이 있는지 확인해 주세요."
+            exit 1
+          else
+            $WRANGLER pages project create "$PROJECT" --production-branch main
+          fi
+
+      - name: 카카오 키를 Cloudflare 비밀값으로 넣기
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+        run: printf '%s' "$KAKAO_REST_API_KEY" | $WRANGLER pages secret put KAKAO_REST_API_KEY --project-name "$PROJECT"
+
+      - name: 배포
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: $WRANGLER pages deploy --project-name "$PROJECT" --branch main --commit-dirty=true
 
       - name: 주소 안내
         env:
-          URL: ${{ steps.deploy.outputs.deployment-url }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          echo "### 배포 완료" >> "$GITHUB_STEP_SUMMARY"
-          echo "휴대폰에서 이 주소를 열고 '홈 화면에 추가' 하세요: ${URL:-Cloudflare 대시보드 → Workers & Pages → hankki 에서 주소 확인}" >> "$GITHUB_STEP_SUMMARY"
-          echo "주소: $URL"
+          domain=$($WRANGLER pages project list 2>/dev/null | grep -oE "$PROJECT[a-z0-9-]*\.pages\.dev" | head -1)
+          url="https://${domain:-$PROJECT.pages.dev}"
+          echo "주소: $url"
+          {
+            echo "### 배포 완료"
+            echo "휴대폰에서 이 주소를 열고 '홈 화면에 추가' 하세요: **$url**"
+            echo "(처음 배포한 직후에는 주소가 열리기까지 1~2분 걸릴 수 있습니다)"
+          } >> "$GITHUB_STEP_SUMMARY"

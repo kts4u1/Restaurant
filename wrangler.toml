@@ -1,9 +1,5 @@
-# Cloudflare Workers 설정 — GitHub Actions(.github/workflows/deploy.yml)가 자동으로 배포한다.
+# Cloudflare Pages 설정 — GitHub Actions(.github/workflows/deploy.yml)가 자동으로 배포한다.
+# 주소: https://hankki.pages.dev  (화면 = public/, 검색 서버 = functions/api/)
 name = "hankki"
-main = "src/worker.js"
+pages_build_output_dir = "./public"
 compatibility_date = "2025-09-01"
-
-# 화면 파일(public/)은 Cloudflare 가 바로 보내고, /api/* 요청만 src/worker.js 가 처리한다
-[assets]
-directory = "./public"
-binding = "ASSETS"
