@@ -176,7 +176,8 @@ async function searchByPlace(e) {
   setBusy(true);
   notice('');
   try {
-    const { candidates, warnings } = await api('/api/geocode?q=' + encodeURIComponent(q));
+    await state.ready;
+    const { candidates, warnings } = state.mode === 'static' ? await staticGeocode(q) : await api('api/geocode?q=' + encodeURIComponent(q));
     if (!candidates.length) {
       notice(`'${esc(q)}' 위치를 찾지 못했습니다. 역 이름, 건물 이름이나 도로명 주소로 다시 입력해 주세요.${warnings?.length ? '<br><small>' + esc(warnings.join(' / ')) + '</small>' : ''}`, 'error');
       $('#candidates').hidden = true;
@@ -240,7 +241,8 @@ async function runSearch({ lat, lng, radius, label }) {
 
   let data;
   try {
-    data = await api(`/api/places?lat=${lat}&lng=${lng}&radius=${radius}`);
+    await state.ready;
+    data = state.mode === 'static' ? await staticSearch(lat, lng, radius) : await api(`api/places?lat=${lat}&lng=${lng}&radius=${radius}`);
   } catch (err) {
     if (id !== state.searchId) return;
     $('#summary').textContent = '';
@@ -255,6 +257,77 @@ async function runSearch({ lat, lng, radius, label }) {
   render();
   updateMap();
   loadDetails(id);
+}
+
+/* ---------- 정적 모드 (GitHub Pages: 서버 없이 미리 만든 데이터로 검색) ---------- */
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371008.8;
+  const rad = (d) => (d * Math.PI) / 180;
+  const a = Math.sin(rad(lat2 - lat1) / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lng2 - lng1) / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+}
+
+const areaFiles = new Map();
+async function loadArea(area) {
+  if (!areaFiles.has(area.id)) {
+    areaFiles.set(
+      area.id,
+      fetch('data/' + area.file + '?v=' + encodeURIComponent(state.staticIndex.generatedAt)).then((r) => {
+        if (!r.ok) throw new Error('데이터 파일을 불러오지 못했습니다.');
+        return r.json();
+      }),
+    );
+  }
+  try {
+    return await areaFiles.get(area.id);
+  } catch (err) {
+    areaFiles.delete(area.id);
+    throw err;
+  }
+}
+
+function areaNames() {
+  return state.staticIndex.areas.map((a) => `${a.name}(${a.radius >= 1000 ? a.radius / 1000 + 'km' : a.radius + 'm'})`).join(', ');
+}
+
+async function staticSearch(lat, lng, radius) {
+  const areas = state.staticIndex.areas.map((a) => ({ ...a, d: distanceMeters(lat, lng, a.lat, a.lng) }));
+  const overlapping = areas.filter((a) => a.d < a.radius + radius);
+  if (!overlapping.length) {
+    throw new Error(`이 위치는 데이터를 모아 둔 지역 밖입니다. 모아 둔 지역: ${areaNames()}. 다른 지역을 쓰려면 저장소의 areas.json 에 추가하세요.`);
+  }
+  const warnings = [];
+  if (!overlapping.some((a) => a.d + radius <= a.radius + 30)) {
+    warnings.push(`검색 범위 일부가 데이터를 모아 둔 지역(${areaNames()}) 밖이라, 그 부분 식당은 빠졌습니다.`);
+  }
+  const files = await Promise.all(overlapping.map(loadArea));
+  const byId = new Map();
+  for (const f of files) {
+    for (const p of f.places) {
+      const d = distanceMeters(lat, lng, p.lat, p.lng);
+      if (d <= radius && !byId.has(p.id)) byId.set(p.id, { ...p, distance: Math.round(d) });
+    }
+  }
+  return { provider: 'static', places: [...byId.values()], warnings };
+}
+
+/** 위치 이름 → 좌표: 모아 둔 지역 이름 먼저, 그다음 OpenStreetMap 검색 */
+async function staticGeocode(q) {
+  const norm = (t) => String(t).replace(/\s/g, '');
+  const candidates = state.staticIndex.areas
+    .filter((a) => norm(a.name).includes(norm(q)) || norm(a.location).includes(norm(q)))
+    .map((a) => ({ name: a.name, address: a.location, lat: a.lat, lng: a.lng }));
+  const warnings = [];
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=kr&limit=5&accept-language=ko&q=' + encodeURIComponent(q);
+    const rows = await (await fetch(url)).json();
+    for (const r of rows) {
+      candidates.push({ name: r.name || String(r.display_name).split(',')[0], address: r.display_name, lat: Number(r.lat), lng: Number(r.lon) });
+    }
+  } catch {
+    warnings.push('위치 검색 서버(OpenStreetMap)에 연결하지 못했습니다.');
+  }
+  return { candidates, warnings };
 }
 
 /* ---------- 카카오맵 메뉴 가격 불러오기 ---------- */
@@ -288,7 +361,7 @@ async function loadDetails(id) {
     while (next < batches.length && id === state.searchId) {
       const batch = batches[next++];
       try {
-        const { results } = await api('/api/details', { method: 'POST', body: { places: batch.map(minimal) } });
+        const { results } = await api('api/details', { method: 'POST', body: { places: batch.map(minimal) } });
         if (id !== state.searchId) return;
         for (const place of Object.values(results)) putPlace(place);
       } catch {
@@ -453,7 +526,8 @@ function render() {
   $('#summary').innerHTML =
     esc(parts.join(' · ')) +
     (excluded.length ? `<br><small>제외: ${esc(excluded.join(', '))}</small>` : '') +
-    (state.provider === 'osm' ? '<br><small>OpenStreetMap 데이터 사용 중 (카카오 키를 설정하면 식당과 가격 정보가 훨씬 많아집니다)</small>' : '');
+    (state.provider === 'osm' ? '<br><small>OpenStreetMap 데이터 사용 중 (카카오 키를 설정하면 식당과 가격 정보가 훨씬 많아집니다)</small>' : '') +
+    (state.provider === 'static' ? `<br><small>메뉴 가격은 ${esc(new Date(state.staticIndex.generatedAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' }))}에 모은 것입니다.</small>` : '');
 
   const empty = $('#empty');
   if (!list.length) {
@@ -613,7 +687,7 @@ async function saveKey(e) {
   $('#key-save').disabled = true;
   keyMsg('<span class="spin"></span> 카카오에 키를 확인하는 중…');
   try {
-    const r = await api('/api/kakao-key', { method: 'POST', body: { key } });
+    const r = await api('api/kakao-key', { method: 'POST', body: { key } });
     $('#key-input').value = '';
     await loadStatus();
     if (r.warning) {
@@ -633,7 +707,8 @@ async function saveKey(e) {
 
 async function loadStatus() {
   try {
-    const s = await api('/api/status');
+    const s = await api('api/status');
+    state.mode = 'server';
     state.status = s;
     $('#key-status').textContent = s.kakao ? `(현재 키 ${s.keyMasked})` : '(아직 키 없음)';
     if (!s.kakao) {
@@ -642,6 +717,20 @@ async function loadStatus() {
     } else if ($('#notice').textContent.includes('카카오 API 키를 넣기 전')) {
       notice('');
     }
+    return;
+  } catch {
+    // 서버가 없으면 (GitHub Pages) 미리 만든 데이터를 쓴다
+  }
+  try {
+    const res = await fetch('data/index.json', { cache: 'no-cache' });
+    if (!res.ok) throw new Error();
+    state.staticIndex = await res.json();
+    state.mode = 'static';
+    state.status = { kakao: true, minRadius: 50, maxRadius: 2000 };
+    document.body.classList.add('static-mode');
+    const date = new Date(state.staticIndex.generatedAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' });
+    $('#data-info').innerHTML = `데이터 기준 <b>${esc(date)}</b> · 모아 둔 지역: ${esc(areaNames())}`;
+    $('#data-info').hidden = false;
   } catch {
     notice('서버에 연결하지 못했습니다. 서버가 켜져 있는지 확인해 주세요.', 'error');
   }
@@ -760,7 +849,7 @@ function init() {
   $('#key-close').addEventListener('click', () => ($('#key-card').hidden = true));
   $('#key-form').addEventListener('submit', saveKey);
 
-  loadStatus();
+  state.ready = loadStatus();
 
   if ('serviceWorker' in navigator && window.isSecureContext) {
     navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -318,3 +318,6 @@ dialog h3 { margin: 0 0 4px; }
 .key-msg.ok { color: var(--ok); font-weight: 700; }
 .key-msg.err { color: #c92a2a; font-weight: 700; }
 code { font-size: 0.9em; background: var(--gray-soft); padding: 0 4px; border-radius: 4px; }
+
+.data-info { margin: 0 0 12px; font-size: 0.86rem; color: var(--muted); }
+body.static-mode .server-only { display: none !important; }

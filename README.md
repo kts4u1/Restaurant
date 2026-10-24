@@ -16,7 +16,38 @@
 
 ---
 
-## 시작하기 (처음 한 번)
+## 휴대폰에서 쓰기: GitHub 시크릿 + GitHub Pages (추천)
+
+학원비교 앱과 같은 방식입니다. 카카오 키를 **GitHub 시크릿**에 넣으면 GitHub Actions가 매주(월·목) 정해 둔 지역의 식당과 메뉴 가격을 모아
+`https://kts4u1.github.io/Restaurant/` 사이트를 만듭니다. 컴퓨터를 켜 둘 필요가 없고, https 주소라 **휴대폰에서 현재 위치(GPS) 검색**이 됩니다.
+키는 시크릿에만 있고 사이트 파일에는 들어가지 않습니다.
+
+1. 저장소 **Settings → Secrets and variables → Actions → New repository secret**
+   - Name: `KAKAO_REST_API_KEY` / Secret: 카카오 **REST API 키** (키를 코드나 채팅에 붙여 넣지 마세요)
+2. 저장소 **Settings → Pages → Build and deployment → Source** 를 `GitHub Actions` 로 바꿉니다.
+3. 저장소의 **`areas.json`** 을 열고 연필(✏️) 버튼으로 식당을 찾을 지역을 고칩니다. 지역은 여러 개 넣을 수 있습니다.
+   ```json
+   {
+     "areas": [
+       { "name": "집 근처", "location": "망원역", "radius": 2000 },
+       { "name": "회사 근처", "location": "강남역", "radius": 1500 }
+     ]
+   }
+   ```
+   - `location`: 역 이름, 건물 이름, 도로명 주소 / `radius`: 미터 (최대 3000)
+   - 저장(Commit)하면 사이트가 자동으로 다시 만들어집니다.
+4. **Actions → 식당 데이터 업데이트 → Run workflow** 로 처음 한 번 실행합니다. 끝나면 **https://kts4u1.github.io/Restaurant/** 에서 열립니다.
+5. 휴대폰에서 그 주소를 열고 **홈 화면에 추가**하면 앱처럼 쓸 수 있습니다.
+
+- 검색은 `areas.json` 지역 안에서만 됩니다. 지역 밖에서 검색하면 안내가 나오니, 자주 가는 곳을 지역으로 추가하세요.
+- 메뉴 가격은 Actions가 데이터를 모은 날 기준이고(화면에 날짜 표시), "지금 영업 중" 표시는 이 방식에서는 나오지 않습니다.
+- 받다가 실패하면 배포하지 않으므로 지난번 사이트가 그대로 남습니다. Actions 화면에서 이유를 볼 수 있습니다.
+- 공개 저장소의 Pages 사이트는 주소를 아는 누구나 열 수 있습니다(검색 엔진에는 안 뜨도록 막아 두었습니다).
+
+## 내 컴퓨터에서 켜서 쓰기
+
+
+### 시작하기 (처음 한 번)
 
 **1. Node.js 설치** — [nodejs.org](https://nodejs.org)에서 **LTS** 버전을 받아 기본값으로 설치합니다. (다른 프로그램은 필요 없습니다)
 
@@ -140,6 +171,10 @@ src/providers/kakaoLocal.js   카카오 로컬 API (식당이 많으면 영역�
 src/providers/kakaoPlace.js   카카오맵 메뉴·영업시간
 src/providers/osm.js          카카오 키가 없을 때 OpenStreetMap
 src/kakaoKey.js           앱 화면에서 넣은 카카오 키 확인·저장
+src/staticBuild.js        GitHub Actions 용: 지역별 식당·메뉴 가격을 정적 파일로
+scripts/build-static.js   위 작업 실행 (KAKAO_REST_API_KEY 필요)
+areas.json                GitHub Pages 사이트에서 검색할 지역
+.github/workflows/deploy.yml  매주 데이터 모으기 + Pages 배포
 start-windows.bat, start-mac.command   더블클릭 실행 파일
 public/                   화면 (HTML/CSS/JS, PWA)
 data/price-estimates.json 업종별 추정 가격

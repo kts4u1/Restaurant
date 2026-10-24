@@ -6,6 +6,7 @@
   <title>한끼 최저가</title>
   <meta name="description" content="내 주변에서 가장 저렴하게 한 끼 먹을 수 있는 식당을 가격순으로 찾아줍니다." />
   <meta name="theme-color" content="#d9480f" />
+  <meta name="robots" content="noindex, nofollow" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -20,6 +21,7 @@
 
   <main>
     <div id="notice" class="notice" role="status" hidden></div>
+    <p id="data-info" class="data-info" hidden></p>
 
     <!-- 카카오 키 넣기 (처음 한 번) -->
     <section class="card key-card" id="key-card" aria-labelledby="key-title" hidden>
@@ -124,7 +126,7 @@
         <div id="group-chips" class="chips" role="group" aria-label="종류"></div>
         <div class="toggles">
           <label class="toggle"><input type="checkbox" id="only-real" /> 확인된 가격만</label>
-          <label class="toggle"><input type="checkbox" id="hide-closed" /> 지금 영업 안 하는 곳 빼기</label>
+          <label class="toggle server-only"><input type="checkbox" id="hide-closed" /> 지금 영업 안 하는 곳 빼기</label>
           <label class="toggle"><input type="checkbox" id="include-bars" /> 술집·카페 포함</label>
           <button type="button" id="map-toggle" class="btn small">🗺 지도 보기</button>
         </div>
@@ -145,7 +147,7 @@
       <li><span class="src src-goodprice">착한가격업소</span> 행정안전부·지자체 착한가격업소 공공데이터</li>
       <li><span class="src src-estimate">추정</span> 메뉴 정보가 없는 곳은 업종별 평균 가격으로 추정</li>
     </ul>
-    <p><button type="button" id="key-open" class="btn small ghost">🔑 카카오 API 키 넣기 / 바꾸기</button> <span id="key-status" class="muted"></span></p>
+    <p class="server-only"><button type="button" id="key-open" class="btn small ghost">🔑 카카오 API 키 넣기 / 바꾸기</button> <span id="key-status" class="muted"></span></p>
     <p class="muted">음료·공기밥·사리 같은 추가 메뉴와 어린이 요금은 빼고, 1인분 식사 중 가장 싼 메뉴를 기준으로 계산합니다. 실제 가격은 방문 전에 한 번 더 확인해 주세요.</p>
   </footer>
 

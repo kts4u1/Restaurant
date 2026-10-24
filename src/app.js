@@ -52,7 +52,12 @@ async function readBody(req, limit = 512 * 1024) {
 /** 설정값으로 서비스 구성 */
 export function buildServices(config, { fetchImpl = fetch } = {}) {
   const kakao = config.kakaoRestKey
-    ? createKakaoLocal({ apiKey: config.kakaoRestKey, baseUrl: config.kakaoApiBase, fetchImpl })
+    ? createKakaoLocal({
+        apiKey: config.kakaoRestKey,
+        baseUrl: config.kakaoApiBase,
+        fetchImpl,
+        ...(config.kakaoMaxRequests ? { maxRequests: config.kakaoMaxRequests, maxDepth: 9 } : {}),
+      })
     : null;
   const osm = createOsm({
     overpassUrls: config.overpassUrls,
