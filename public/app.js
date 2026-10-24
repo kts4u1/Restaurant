@@ -250,7 +250,7 @@ async function runSearch({ lat, lng, radius, label }) {
   if (id !== state.searchId) return;
   state.provider = data.provider;
   state.warnings = data.warnings || [];
-  for (const p of data.places) state.places.set(p.id, p);
+  for (const p of data.places) putPlace(p);
   if (state.warnings.length) notice(state.warnings.map(esc).join('<br>'));
   render();
   updateMap();
@@ -290,7 +290,7 @@ async function loadDetails(id) {
       try {
         const { results } = await api('/api/details', { method: 'POST', body: { places: batch.map(minimal) } });
         if (id !== state.searchId) return;
-        for (const [pid, place] of Object.entries(results)) state.places.set(pid, place);
+        for (const place of Object.values(results)) putPlace(place);
       } catch {
         for (const p of batch) state.places.set(p.id, { ...state.places.get(p.id), detailStatus: 'failed' });
       }
@@ -534,6 +534,37 @@ function showMenu(p) {
   $('#menu-title').focus();
 }
 
+/* ---------- 내가 직접 입력한 가격 (이 브라우저에 저장) ---------- */
+const myPrices = {
+  all: () => store.get('userPrices', {}),
+  get: (id) => myPrices.all()[id] || null,
+  set(id, value) {
+    const all = myPrices.all();
+    if (value) all[id] = value;
+    else delete all[id];
+    store.set('userPrices', all);
+  },
+};
+
+/** 서버 가격(basePrice)은 보관하고, 내가 입력한 가격이 있으면 그걸 쓴다 */
+function putPlace(place) {
+  const basePrice = place.basePrice || place.price;
+  const mine = myPrices.get(place.id);
+  const price = mine
+    ? {
+        amount: mine.price,
+        menuName: mine.menu || '직접 입력한 가격',
+        source: 'user',
+        sourceLabel: '직접 확인',
+        updatedAt: mine.updatedAt,
+        servings: 1,
+        rawPrice: mine.price,
+        isEstimate: false,
+      }
+    : basePrice;
+  state.places.set(place.id, { ...place, basePrice, price });
+}
+
 let editing = null;
 function showPriceForm(p) {
   editing = p;
@@ -543,12 +574,6 @@ function showPriceForm(p) {
   $('#price-amount').value = isUser ? p.price.amount : '';
   $('#price-delete').hidden = !isUser;
   $('#price-dialog').showModal();
-}
-
-async function refreshPlace(p) {
-  const { results } = await api('/api/details', { method: 'POST', body: { places: [minimal(p)] } });
-  if (results[p.id]) state.places.set(p.id, results[p.id]);
-  render();
 }
 
 /* ---------- 이벤트 ---------- */
@@ -633,34 +658,30 @@ function init() {
     if (btn.dataset.act === 'price') showPriceForm(p);
   });
 
-  $('#price-form').addEventListener('submit', async (e) => {
+  $('#price-form').addEventListener('submit', (e) => {
     if (e.submitter?.value !== 'save' || !editing) return;
     e.preventDefault();
-    const price = Number($('#price-amount').value);
+    const price = Math.round(Number($('#price-amount').value));
     if (!price || price < 100) {
       $('#price-amount').focus();
       return;
     }
-    try {
-      await api('/api/user-prices', {
-        method: 'POST',
-        body: { id: editing.id, name: editing.name, menu: $('#price-menu').value.trim(), price },
-      });
-      $('#price-dialog').close();
-      await refreshPlace(editing);
-    } catch (err) {
-      notice(esc(err.message), 'error');
-    }
+    myPrices.set(editing.id, {
+      name: editing.name,
+      menu: $('#price-menu').value.trim().slice(0, 100),
+      price,
+      updatedAt: new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Seoul' }),
+    });
+    $('#price-dialog').close();
+    putPlace(state.places.get(editing.id));
+    render();
   });
-  $('#price-delete').addEventListener('click', async () => {
+  $('#price-delete').addEventListener('click', () => {
     if (!editing) return;
-    try {
-      await api('/api/user-prices?id=' + encodeURIComponent(editing.id), { method: 'DELETE' });
-      $('#price-dialog').close();
-      await refreshPlace(editing);
-    } catch (err) {
-      notice(esc(err.message), 'error');
-    }
+    myPrices.set(editing.id, null);
+    $('#price-dialog').close();
+    putPlace(state.places.get(editing.id));
+    render();
   });
 
   api('/api/status')

@@ -18,7 +18,7 @@ export function createSearchService({
   fallback,
   placeDetail,
   goodprice,
-  userPrices,
+  userPrices = null,
   estimate,
   maxPlaces = 600,
   now = () => Date.now(),
@@ -42,7 +42,7 @@ export function createSearchService({
     const gp = place.goodprice !== undefined ? place.goodprice : goodprice.match(place);
     const context = `${place.category || ''} ${place.name || ''}`;
     const price = resolvePrice({
-      userPrice: userPrices.get(place.id),
+      userPrice: userPrices?.get(place.id) || null,
       menuItems: det?.menu,
       menuUpdatedAt: det?.menuUpdatedAt,
       goodprice: gp,

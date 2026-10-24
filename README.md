@@ -16,7 +16,25 @@
 
 ---
 
-## 빠른 시작
+## Vercel에 올리기 (휴대폰에서 바로 쓰기, 추천)
+
+Vercel에 올리면 `https://…vercel.app` 주소가 생겨서 **휴대폰에서도 현재 위치(GPS)로 바로 검색**됩니다. 컴퓨터를 켜 둘 필요도 없습니다.
+카카오 키는 Vercel의 환경변수에 넣고, 앱의 서버 함수(`api/` 폴더)가 그 키로 카카오에서 데이터를 가져옵니다. 키는 휴대폰 화면 쪽으로 보내지 않습니다.
+
+1. [vercel.com](https://vercel.com) 로그인 → **Add New… → Project** → GitHub의 `kts4u1/Restaurant` 선택 → **Import**
+2. 설정 화면에서
+   - **Framework Preset**: `Other` (나머지 빌드 설정은 비워 두면 `vercel.json`이 알아서 처리)
+   - **Environment Variables**: Name `KAKAO_REST_API_KEY`, Value 에 카카오 **REST API 키** → **Add**
+3. **Deploy** → 1분쯤 뒤 나오는 `https://….vercel.app` 주소를 휴대폰에서 열고 "홈 화면에 추가"
+
+- 이미 쓰던 Vercel 프로젝트에 키를 넣어 두었다면, 그 프로젝트의 **Settings → Git**에서 이 저장소를 연결하거나 위처럼 새 프로젝트를 만들고 키를 다시 넣으세요. 환경변수는 프로젝트마다 따로입니다.
+- 키 이름은 `KAKAO_REST_API_KEY`(또는 `KAKAO_API_KEY`, `KAKAO_REST_KEY`)여야 합니다.
+- 환경변수를 넣거나 바꾼 뒤에는 **Deployments → … → Redeploy**를 해야 적용됩니다.
+- 제대로 연결됐는지는 `https://내주소.vercel.app/api/status` 를 열어 `"kakao":true` 인지 보면 됩니다.
+- Vercel은 기본 브랜치(main)를 정식 주소로 배포합니다. 다른 브랜치에 올린 코드는 미리보기(Preview) 주소로 배포되고, 환경변수를 넣을 때 **Preview**에도 체크해야 그 주소에서 키를 씁니다.
+- 함수는 서울 리전(`icn1`)에서 실행되도록 `vercel.json`에 설정해 두었습니다.
+
+## 내 컴퓨터에서 실행하기
 
 필요한 것: [Node.js](https://nodejs.org) 20.12 이상 (설치할 다른 패키지는 없습니다)
 
@@ -56,7 +74,7 @@ npm start
 
 | 순서 | 출처 | 설명 |
 | --- | --- | --- |
-| 1 | **직접 확인** | 내가 카드의 "가격 입력"으로 저장한 가격 (`data/user-prices.json`) |
+| 1 | **직접 확인** | 내가 카드의 "가격 입력"으로 저장한 가격 (내 브라우저에만 저장) |
 | 2 | **카카오맵 메뉴** | 식당이 카카오맵에 올린 메뉴판 가격 (메뉴 갱신 날짜 표시) |
 | 3 | **착한가격업소** | 행정안전부·지자체 착한가격업소 공공데이터 (가져온 경우) |
 | 4 | **추정** | 메뉴 정보가 없으면 업종별 평균 가격으로 추정 — 회색 "약 ○원"으로 구분 |
@@ -122,6 +140,8 @@ npm run import:goodprice -- --geocode 받은파일.csv
   추정 가격으로 동작하며, `ENABLE_MENU_FETCH=false`로 끌 수 있습니다. 개인 용도로, 적은 양만 요청하도록 동시 요청 수와 캐시를 두었습니다.
 - 메뉴판 가격은 식당이 갱신하지 않으면 오래된 가격일 수 있어 기준 날짜를 함께 보여줍니다. 방문 전에 한 번 더 확인해 주세요.
 - 점심 특선·평일 한정 가격도 메뉴판에 있으면 최저가로 잡힙니다. 최소 주문 인원(2인분부터 등)은 반영하지 않습니다.
+- "가격 입력"으로 저장한 내 가격은 지금 쓰는 브라우저에만 저장됩니다(다른 휴대폰·브라우저와 공유되지 않음).
+- Vercel에서는 메뉴 정보 저장(캐시)이 함수가 다시 시작될 때마다 비워져서, 가끔 첫 검색이 조금 더 걸릴 수 있습니다.
 - 영업 정보는 1시간 안에 확인한 것만 "영업 중/종료"로 표시합니다.
 - 거리는 직선거리이며, 도보 시간은 분당 67m 기준입니다.
 
@@ -142,6 +162,8 @@ src/goodprice.js          착한가격업소 CSV 읽기와 식당 연결
 src/providers/kakaoLocal.js   카카오 로컬 API (식당이 많으면 영역을 나눠 전부 수집)
 src/providers/kakaoPlace.js   카카오맵 메뉴·영업시간
 src/providers/osm.js          카카오 키가 없을 때 OpenStreetMap
+api/                      Vercel 서버 함수 (status, places, details, geocode)
+src/vercel.js             Vercel 함수 공통 진입점
 public/                   화면 (HTML/CSS/JS, PWA)
 data/price-estimates.json 업종별 추정 가격
 scripts/import-goodprice.js   착한가격업소 가져오기
@@ -154,5 +176,4 @@ scripts/import-goodprice.js   착한가격업소 가져오기
 | `GET /api/places?lat=&lng=&radius=` | 반경 안 식당과 1차 가격 (캐시된 메뉴 가격 포함) |
 | `POST /api/details` `{ places: [...] }` | 카카오맵 메뉴·영업시간을 가져와 가격 다시 계산 (최대 30곳) |
 | `GET /api/geocode?q=` | 위치 이름/주소 → 좌표 후보 |
-| `POST /api/user-prices` `{ id, name, menu, price }` | 직접 확인한 가격 저장 (`DELETE /api/user-prices?id=` 로 삭제) |
 | `GET /api/status` | 설정 상태 |

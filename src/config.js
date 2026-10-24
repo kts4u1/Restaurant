@@ -21,7 +21,8 @@ export function loadConfig(overrides = {}) {
   return {
     port: num(env.PORT, 3000),
     host: env.HOST || '0.0.0.0',
-    kakaoRestKey: (env.KAKAO_REST_API_KEY || '').trim(),
+    // Vercel 등에 다른 이름으로 넣어 둔 경우도 읽는다
+    kakaoRestKey: (env.KAKAO_REST_API_KEY || env.KAKAO_API_KEY || env.KAKAO_REST_KEY || '').trim(),
     kakaoApiBase: env.KAKAO_API_BASE || 'https://dapi.kakao.com',
     kakaoPlaceApiBase: env.KAKAO_PLACE_API_BASE || 'https://place-api.map.kakao.com',
     enableMenuFetch: env.ENABLE_MENU_FETCH !== 'false',
@@ -37,7 +38,8 @@ export function loadConfig(overrides = {}) {
       .filter(Boolean),
     nominatimUrl: env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org',
     dataDir: env.DATA_DIR || path.join(ROOT, 'data'),
-    cacheDir: env.CACHE_DIR || path.join(ROOT, '.cache'),
+    // Vercel 은 /tmp 만 쓸 수 있다 (함수가 다시 시작되면 비워짐)
+    cacheDir: env.CACHE_DIR || (env.VERCEL ? '/tmp/hankki-cache' : path.join(ROOT, '.cache')),
     publicDir: path.join(ROOT, 'public'),
     userAgent: 'hankki-choijeoga/1.0 (+https://github.com/kts4u1/Restaurant)',
     ...overrides,

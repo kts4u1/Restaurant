@@ -139,19 +139,6 @@ test('주변 식당 → 메뉴 가격 → 가격순', async () => {
   assert.equal(again.places.find((p) => p.kakaoId === '2').price.amount, 3500);
 });
 
-test('직접 입력한 가격이 가장 우선', async () => {
-  const place = { id: 'kakao:1', kakaoId: '1', name: '명동칼국수', category: '음식점 > 한식 > 국수 > 칼국수', lat: CENTER.lat, lng: CENTER.lng };
-  const saved = await post('/api/user-prices', { id: 'kakao:1', name: '명동칼국수', menu: '점심 칼국수', price: '7,000' });
-  assert.equal(saved.body.price, 7000);
-  const { body } = await post('/api/details', { places: [place] });
-  assert.deepEqual([body.results['kakao:1'].price.source, body.results['kakao:1'].price.amount], ['user', 7000]);
-  await fetch(base + '/api/user-prices?id=kakao:1', { method: 'DELETE' });
-  const { body: after } = await post('/api/details', { places: [place] });
-  assert.equal(after.results['kakao:1'].price.source, 'menu');
-  const bad = await post('/api/user-prices', { id: 'kakao:1', price: '' });
-  assert.equal(bad.status, 400);
-});
-
 test('잘못된 입력', async () => {
   const odd = await post('/api/details', { places: [{ id: 'kakao:x', kakaoId: '../../etc', name: '이상한 곳', category: '음식점' }] });
   assert.equal(odd.status, 200);

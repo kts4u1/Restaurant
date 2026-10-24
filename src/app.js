@@ -4,7 +4,6 @@ import { createKakaoLocal } from './providers/kakaoLocal.js';
 import { createKakaoPlaceDetail } from './providers/kakaoPlace.js';
 import { createOsm } from './providers/osm.js';
 import { loadGoodPrice } from './goodprice.js';
-import { createUserPriceStore } from './userPrices.js';
 import { createEstimator } from './pricing.js';
 import { createSearchService } from './search.js';
 import { createCache, readJsonFile } from './util.js';
@@ -34,6 +33,17 @@ function sendJson(res, status, body) {
 }
 
 async function readBody(req, limit = 512 * 1024) {
+  // Vercel 함수에서는 본문이 이미 읽혀 req.body 에 들어 있다
+  if (req.body !== undefined) {
+    if (typeof req.body === 'string') {
+      try {
+        return JSON.parse(req.body || '{}');
+      } catch {
+        throw httpError(400, '잘못된 요청 형식입니다.');
+      }
+    }
+    return req.body || {};
+  }
   let size = 0;
   const chunks = [];
   for await (const chunk of req) {
@@ -73,21 +83,19 @@ export function buildServices(config, { fetchImpl = fetch } = {}) {
   });
   const goodprice = loadGoodPrice(path.join(config.dataDir, 'goodprice.json'));
   const estimates = readJsonFile(path.join(config.dataDir, 'price-estimates.json'), {});
-  const userPrices = createUserPriceStore(path.join(config.dataDir, 'user-prices.json'));
   const service = createSearchService({
     primary: kakao || osm,
     fallback: kakao ? osm : null,
     placeDetail,
     goodprice,
-    userPrices,
     estimate: createEstimator(estimates),
     maxPlaces: config.maxPlaces,
   });
-  return { kakao, osm, placeDetail, goodprice, estimates, userPrices, service };
+  return { kakao, osm, placeDetail, goodprice, estimates, service };
 }
 
 export function createHandler(config, services) {
-  const { kakao, osm, placeDetail, goodprice, estimates, userPrices, service } = services;
+  const { kakao, osm, placeDetail, goodprice, estimates, service } = services;
   const publicDir = path.resolve(config.publicDir);
 
   async function geocode(q) {
@@ -145,15 +153,6 @@ export function createHandler(config, services) {
         .map((p) => Object.fromEntries(PLACE_FIELDS.filter((f) => p[f] !== undefined).map((f) => [f, p[f]])))
         .map((p) => (p.kakaoId !== undefined && !/^\d{1,15}$/.test(String(p.kakaoId)) ? { ...p, kakaoId: undefined } : p));
       return sendJson(res, 200, { results: await service.details(places) });
-    }
-
-    if (route === 'GET /api/user-prices') return sendJson(res, 200, userPrices.all());
-    if (route === 'POST /api/user-prices') {
-      const body = await readBody(req);
-      return sendJson(res, 200, userPrices.set(String(body.id || ''), body));
-    }
-    if (route === 'DELETE /api/user-prices') {
-      return sendJson(res, 200, { removed: userPrices.remove(q.get('id') || '') });
     }
 
     throw httpError(404, '없는 주소입니다.');
