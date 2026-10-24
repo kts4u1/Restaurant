@@ -88,7 +88,12 @@ export function createKakaoLocal({
     const found = new Map();
     let requests = 0;
     let truncated = false;
-    const request = (pathname, params) => {
+    // 요청 수 상한 (Cloudflare 무료 플랜은 한 번에 50개까지). 넘으면 더 묻지 않고 '일부만'으로 표시
+    const request = async (pathname, params) => {
+      if (requests >= maxRequests) {
+        truncated = true;
+        return null;
+      }
       requests++;
       return limit(() => call(pathname, params));
     };
@@ -100,9 +105,9 @@ export function createKakaoLocal({
     const restPages = async (pathname, params, first) => {
       add(first.documents);
       let body = first;
-      for (let page = 2; page <= MAX_PAGEABLE / PAGE_SIZE && body.meta?.is_end === false; page++) {
+      for (let page = 2; page <= MAX_PAGEABLE / PAGE_SIZE && body?.meta?.is_end === false; page++) {
         body = await request(pathname, { ...params, page, size: PAGE_SIZE });
-        add(body.documents);
+        if (body) add(body.documents);
       }
     };
 
@@ -120,9 +125,10 @@ export function createKakaoLocal({
         if (!boxIntersectsCircle(box, lat, lng, radius)) return;
         const params = { ...base, rect: `${box.minLng},${box.minLat},${box.maxLng},${box.maxLat}` };
         const body = await request(CATEGORY, { ...params, page: 1, size: PAGE_SIZE });
+        if (!body) return;
         const total = body.meta?.total_count ?? 0;
         if (total > MAX_PAGEABLE) {
-          if (depth < maxDepth && requests < maxRequests) {
+          if (depth < maxDepth && requests + 4 <= maxRequests) {
             await Promise.all(splitBox(box).map((b) => searchCell(b, depth + 1)));
             return;
           }
@@ -133,15 +139,17 @@ export function createKakaoLocal({
       await searchCell(boxAround(lat, lng, radius), 0);
     }
 
-    // 3) 기사식당·한식뷔페·구내식당 등 키워드 보강
+    // 3) 기사식당·한식뷔페·구내식당 등 키워드 보강 (남은 요청 수 안에서만, 상한 때문에 빠져도 '일부만' 표시는 안 함)
     const KEYWORD = '/v2/local/search/keyword.json';
+    const wasTruncated = truncated;
     await Promise.all(
       EXTRA_KEYWORDS.map(async (query) => {
         const params = { query, x: lng, y: lat, radius: Math.round(radius), sort: 'distance' };
         const body = await request(KEYWORD, { ...params, page: 1, size: PAGE_SIZE });
-        await restPages(KEYWORD, params, body);
+        if (body) await restPages(KEYWORD, params, body);
       }),
     );
+    truncated = wasTruncated;
 
     const places = [...found.values()].filter((p) => distanceMeters(lat, lng, p.lat, p.lng) <= radius);
     return { places, truncated, requests };

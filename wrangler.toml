@@ -1,0 +1,9 @@
+# Cloudflare Workers 설정 — GitHub Actions(.github/workflows/deploy.yml)가 자동으로 배포한다.
+name = "hankki"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+
+# 화면 파일(public/)은 Cloudflare 가 바로 보내고, /api/* 요청만 src/worker.js 가 처리한다
+[assets]
+directory = "./public"
+binding = "ASSETS"

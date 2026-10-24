@@ -2,14 +2,13 @@
 import fs from 'node:fs';
 import { createKakaoLocal } from './providers/kakaoLocal.js';
 
+export { maskKey } from './api.js';
+
 // 카카오 REST API 키는 영문·숫자 32자리다 (줄바꿈 등이 .env 에 들어가지 않게 형식을 확인)
 export function isValidKeyFormat(key) {
   return /^[A-Za-z0-9]{20,64}$/.test(key);
 }
 
-export function maskKey(key) {
-  return key ? `${key.slice(0, 4)}…${key.slice(-4)}` : '';
-}
 
 /** .env 의 KAKAO_REST_API_KEY 줄만 바꾸고 나머지 설정은 그대로 둔다 */
 export function writeEnvKey(envFile, key, templateFile) {

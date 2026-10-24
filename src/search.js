@@ -22,8 +22,8 @@ export function createSearchService({
   estimate,
   maxPlaces = 600,
   now = () => Date.now(),
+  placesCache = createCache({ ttlMs: 30 * 60 * 1000 }),
 }) {
-  const placesCache = createCache({ namespace: 'places', ttlMs: 30 * 60 * 1000, memoryOnly: true });
 
   /** 영업 정보는 1시간 안에 확인한 것만 보여준다 (오늘 영업시간은 당일까지) */
   function openInfo(detail) {

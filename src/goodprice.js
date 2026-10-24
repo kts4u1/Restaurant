@@ -1,8 +1,7 @@
 // 착한가격업소(행정안전부·지자체 공공데이터) 읽기와 식당 매칭
 // 지자체마다 CSV 컬럼 구성이 달라서 컬럼 이름으로 자동 인식한다.
-import crypto from 'node:crypto';
 import { distanceMeters } from './geo.js';
-import { normalizeName, readJsonFile } from './util.js';
+import { normalizeName } from './util.js';
 import { parsePrice } from './pricing.js';
 
 /** CSV 바이트 → 문자열 (UTF-8 이 아니면 EUC-KR/CP949 로 읽는다) */
@@ -63,6 +62,18 @@ function parseMenuText(text) {
   return out;
 }
 
+/** 짧은 고유 ID 용 해시 (FNV-1a, 두 번 돌려 12자리) */
+function hashText(text) {
+  let a = 0x811c9dc5;
+  let b = 0x01000193;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    a = Math.imul(a ^ c, 16777619) >>> 0;
+    b = Math.imul(b ^ c, 2246822519) >>> 0;
+  }
+  return (a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0')).slice(0, 12);
+}
+
 /** CSV 행들 → 착한가격업소 목록 */
 export function rowsToEntries(rows, { sourceName = '' } = {}) {
   if (!rows.length) return [];
@@ -114,7 +125,7 @@ export function rowsToEntries(rows, { sourceName = '' } = {}) {
     if (prefix && address && !address.startsWith(prefix.split(' ')[0])) address = `${prefix} ${address}`;
     const lat = parseFloat(get(col.lat));
     const lng = parseFloat(get(col.lng));
-    const id = 'gp:' + crypto.createHash('sha1').update(`${normalizeName(name)}|${address}`).digest('hex').slice(0, 12);
+    const id = 'gp:' + hashText(`${normalizeName(name)}|${address}`);
     entries.push({
       id,
       name,
@@ -196,9 +207,4 @@ export function createGoodPriceIndex(entries = []) {
   }
 
   return { match, nearby, size: entries.length };
-}
-
-export function loadGoodPrice(file) {
-  const entries = readJsonFile(file, []);
-  return createGoodPriceIndex(Array.isArray(entries) ? entries : []);
 }

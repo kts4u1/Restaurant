@@ -203,3 +203,14 @@ test('OpenStreetMap: 첫 서버가 안 되면 다음 서버 응답을 쓴다', a
   const allBad = createOsm({ overpassUrls: ['http://bad.test/a', 'http://bad.test/b'], nominatimUrl: 'http://n.test', userAgent: 't', fetchImpl, hedgeMs: 10 });
   await assert.rejects(allBad.searchFoodPlaces({ ...CENTER, radius: 300 }), /OpenStreetMap 서버에 연결하지 못했습니다/);
 });
+
+test('카카오: 요청 수 상한을 넘지 않고, 못 다 모으면 일부만이라고 알린다', async () => {
+  const all = makePlaces(400);
+  const { fetchImpl, calls } = fakeKakao(all);
+  const kakao = createKakaoLocal({ apiKey: 'test-key', baseUrl: 'http://kakao.test', fetchImpl, maxRequests: 12 });
+  const { places, truncated, requests } = await kakao.searchFoodPlaces({ ...CENTER, radius: 300 });
+  assert.ok(calls.length <= 12, String(calls.length));
+  assert.equal(requests, calls.length);
+  assert.equal(truncated, true);
+  assert.ok(places.length > 0);
+});

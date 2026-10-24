@@ -12,7 +12,7 @@ import { loadConfig } from '../src/config.js';
 import { decodeCsv, parseCsv, rowsToEntries } from '../src/goodprice.js';
 import { createKakaoLocal } from '../src/providers/kakaoLocal.js';
 import { createOsm } from '../src/providers/osm.js';
-import { readJsonFile, writeJsonFile } from '../src/util.js';
+import { readJsonFile, writeJsonFile } from '../src/fsUtil.js';
 
 const args = process.argv.slice(2);
 const files = args.filter((a) => !a.startsWith('--'));

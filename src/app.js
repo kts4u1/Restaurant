@@ -1,14 +1,10 @@
+// PC 에서 켜는 Node.js 서버: 화면 파일 + /api, 앱 화면에서 카카오 키 저장
 import fs from 'node:fs';
 import path from 'node:path';
-import { createKakaoLocal } from './providers/kakaoLocal.js';
-import { createKakaoPlaceDetail } from './providers/kakaoPlace.js';
-import { createOsm } from './providers/osm.js';
-import { loadGoodPrice } from './goodprice.js';
-import { createEstimator } from './pricing.js';
-import { createSearchService } from './search.js';
-import { createCache, readJsonFile } from './util.js';
-import { isValidLatLng } from './geo.js';
-import { isValidKeyFormat, maskKey, verifyKey, writeEnvKey } from './kakaoKey.js';
+import { createServices } from './services.js';
+import { createApi, httpError, maskKey } from './api.js';
+import { fileCacheStore, readJsonFile } from './fsUtil.js';
+import { isValidKeyFormat, verifyKey, writeEnvKey } from './kakaoKey.js';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -21,16 +17,9 @@ const MIME = {
   '.ico': 'image/x-icon',
 };
 
-const PLACE_FIELDS = ['id', 'kakaoId', 'name', 'category', 'address', 'jibunAddress', 'lat', 'lng', 'phone', 'url', 'distance', 'provider'];
-
-function httpError(status, message) {
-  return Object.assign(new Error(message), { status });
-}
-
 function sendJson(res, status, body) {
-  const data = JSON.stringify(body);
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-  res.end(data);
+  res.end(JSON.stringify(body));
 }
 
 async function readBody(req, limit = 512 * 1024) {
@@ -49,44 +38,14 @@ async function readBody(req, limit = 512 * 1024) {
   }
 }
 
-/** 설정값으로 서비스 구성 */
+/** 설정값으로 서비스 구성 (data/ 파일과 디스크 캐시 사용) */
 export function buildServices(config, { fetchImpl = fetch } = {}) {
-  const kakao = config.kakaoRestKey
-    ? createKakaoLocal({
-        apiKey: config.kakaoRestKey,
-        baseUrl: config.kakaoApiBase,
-        fetchImpl,
-        ...(config.kakaoMaxRequests ? { maxRequests: config.kakaoMaxRequests, maxDepth: 9 } : {}),
-      })
-    : null;
-  const osm = createOsm({
-    overpassUrls: config.overpassUrls,
-    nominatimUrl: config.nominatimUrl,
-    userAgent: config.userAgent,
+  return createServices(config, {
     fetchImpl,
+    estimates: readJsonFile(path.join(config.dataDir, 'price-estimates.json'), {}),
+    goodpriceEntries: readJsonFile(path.join(config.dataDir, 'goodprice.json'), []),
+    detailCachePersist: fileCacheStore(config.cacheDir, 'kakao-place'),
   });
-  const placeDetail = createKakaoPlaceDetail({
-    baseUrl: config.kakaoPlaceApiBase,
-    fetchImpl,
-    concurrency: config.menuConcurrency,
-    enabled: config.enableMenuFetch,
-    cache: createCache({
-      dir: config.cacheDir,
-      namespace: 'kakao-place',
-      ttlMs: config.detailCacheHours * 60 * 60 * 1000,
-    }),
-  });
-  const goodprice = loadGoodPrice(path.join(config.dataDir, 'goodprice.json'));
-  const estimates = readJsonFile(path.join(config.dataDir, 'price-estimates.json'), {});
-  const service = createSearchService({
-    primary: kakao || osm,
-    fallback: kakao ? osm : null,
-    placeDetail,
-    goodprice,
-    estimate: createEstimator(estimates),
-    maxPlaces: config.maxPlaces,
-  });
-  return { kakao, osm, placeDetail, goodprice, estimates, service };
 }
 
 // 이 컴퓨터에서 직접 연 요청인지 (터널·프록시를 거쳐 들어온 요청은 주소가 127.0.0.1 이어도 외부로 본다)
@@ -107,85 +66,19 @@ export function createHandler(config, initialServices, { rebuild, fetchImpl = fe
   let services = initialServices;
   const publicDir = path.resolve(config.publicDir);
 
-  async function geocode(q) {
-    const { kakao, osm } = services;
-    const warnings = [];
-    for (const g of [kakao, osm].filter(Boolean)) {
-      try {
-        const list = await g.geocode(q);
-        if (list.length) return { candidates: list.slice(0, 6), provider: g.name, warnings };
-      } catch (err) {
-        warnings.push(err.message);
+  const setKey = rebuild
+    ? async (key) => {
+        if (!isValidKeyFormat(key)) {
+          throw httpError(400, '키 형식이 맞지 않습니다. 카카오 개발자 사이트의 [앱 키]에서 "REST API 키"를 그대로 복사해 붙여넣어 주세요.');
+        }
+        const { warning } = await verifyKey(key, { baseUrl: config.kakaoApiBase, fetchImpl });
+        writeEnvKey(config.envFile, key, config.envTemplate);
+        config.kakaoRestKey = key;
+        services = rebuild(key);
+        return { ok: true, keyMasked: maskKey(key), warning };
       }
-    }
-    return { candidates: [], warnings };
-  }
-
-  async function api(req, res, url) {
-    const route = `${req.method} ${url.pathname}`;
-    const q = url.searchParams;
-    const { kakao, placeDetail, goodprice, estimates, service } = services;
-
-    if (route === 'GET /api/status') {
-      return sendJson(res, 200, {
-        kakao: Boolean(kakao),
-        keyMasked: maskKey(config.kakaoRestKey),
-        canEditKey: Boolean(rebuild) && isLocalRequest(req),
-        provider: kakao ? 'kakao' : 'osm',
-        menuFetch: placeDetail.enabled,
-        goodpriceCount: goodprice.size,
-        minRadius: config.minRadius,
-        maxRadius: config.maxRadius,
-        estimatesBasis: estimates.basis || '',
-      });
-    }
-
-    if (route === 'GET /api/geocode') {
-      const text = (q.get('q') || '').trim();
-      if (!text) throw httpError(400, '위치를 입력해 주세요.');
-      if (text.length > 100) throw httpError(400, '위치가 너무 깁니다.');
-      return sendJson(res, 200, await geocode(text));
-    }
-
-    if (route === 'GET /api/places') {
-      const lat = Number(q.get('lat'));
-      const lng = Number(q.get('lng'));
-      const radius = Math.round(Number(q.get('radius') || 300));
-      if (!isValidLatLng(lat, lng)) throw httpError(400, '위치 좌표가 올바르지 않습니다.');
-      if (!Number.isFinite(radius) || radius < config.minRadius || radius > config.maxRadius) {
-        throw httpError(400, `반경은 ${config.minRadius}~${config.maxRadius}m 사이로 입력해 주세요.`);
-      }
-      return sendJson(res, 200, await service.findPlaces({ lat, lng, radius }));
-    }
-
-    if (route === 'POST /api/details') {
-      const body = await readBody(req);
-      const list = Array.isArray(body.places) ? body.places.slice(0, 30) : [];
-      const places = list
-        .filter((p) => p && typeof p.id === 'string')
-        .map((p) => Object.fromEntries(PLACE_FIELDS.filter((f) => p[f] !== undefined).map((f) => [f, p[f]])))
-        .map((p) => (p.kakaoId !== undefined && !/^\d{1,15}$/.test(String(p.kakaoId)) ? { ...p, kakaoId: undefined } : p));
-      return sendJson(res, 200, { results: await service.details(places) });
-    }
-
-    if (route === 'POST /api/kakao-key') {
-      if (!rebuild) throw httpError(404, '없는 주소입니다.');
-      if (!isLocalRequest(req)) {
-        throw httpError(403, '카카오 키는 서버를 켠 컴퓨터에서 http://localhost:' + config.port + ' 으로 열어서 넣어 주세요.');
-      }
-      const key = String((await readBody(req)).key || '').trim();
-      if (!isValidKeyFormat(key)) {
-        throw httpError(400, '키 형식이 맞지 않습니다. 카카오 개발자 사이트의 [앱 키]에서 "REST API 키"를 그대로 복사해 붙여넣어 주세요.');
-      }
-      const { warning } = await verifyKey(key, { baseUrl: config.kakaoApiBase, fetchImpl });
-      writeEnvKey(config.envFile, key, config.envTemplate);
-      config.kakaoRestKey = key;
-      services = rebuild(key);
-      return sendJson(res, 200, { ok: true, keyMasked: maskKey(key), warning });
-    }
-
-    throw httpError(404, '없는 주소입니다.');
-  }
+    : null;
+  const api = createApi({ config, getServices: () => services, setKey, keySource: 'local' });
 
   function serveStatic(req, res, url) {
     if (req.method !== 'GET' && req.method !== 'HEAD') throw httpError(405, '허용되지 않는 요청입니다.');
@@ -217,8 +110,16 @@ export function createHandler(config, initialServices, { rebuild, fetchImpl = fe
   return async function handler(req, res) {
     const url = new URL(req.url, 'http://localhost');
     try {
-      if (url.pathname.startsWith('/api/')) await api(req, res, url);
-      else serveStatic(req, res, url);
+      if (url.pathname.startsWith('/api/')) {
+        const { status, body } = await api({
+          method: req.method,
+          pathname: url.pathname,
+          searchParams: url.searchParams,
+          readBody: () => readBody(req),
+          isLocal: isLocalRequest(req),
+        });
+        sendJson(res, status, body);
+      } else serveStatic(req, res, url);
     } catch (err) {
       const status = err.status || 500;
       if (status >= 500) console.error('[오류]', err);
