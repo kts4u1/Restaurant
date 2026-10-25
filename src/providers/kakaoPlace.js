@@ -15,7 +15,26 @@ const HEADERS = {
 
 const toDate = (s) => (typeof s === 'string' && s.length >= 10 ? s.slice(0, 10) : null);
 
-/** 카카오맵 장소 JSON → { menu, menuUpdatedAt, open } */
+/** 카카오맵 평점·리뷰 수와 "맛"·"가성비" 추천 수 */
+export function parseRating(data) {
+  const review = data?.kakaomap_review;
+  const set = review?.score_set;
+  const blog = Number(data?.blog_review?.review_count) || 0;
+  if (!set && !blog) return null;
+  const idOf = (name) => (review?.strength_description || []).find((s) => s.name === name)?.id;
+  const countOf = (id) => (id == null ? 0 : Number((set?.strength_counts || []).find((c) => c.id === id)?.count) || 0);
+  const count = Number(set?.review_count) || 0;
+  const score = Number(set?.average_score);
+  return {
+    score: count && Number.isFinite(score) ? Math.round(score * 10) / 10 : null,
+    count,
+    blog,
+    taste: countOf(idOf('맛')),
+    value: countOf(idOf('가성비')),
+  };
+}
+
+/** 카카오맵 장소 JSON → { menu, menuUpdatedAt, open, rating } */
 export function parsePlaceDetail(data) {
   if (!data || typeof data !== 'object') return null;
   const menu = [];
@@ -54,7 +73,7 @@ export function parsePlaceDetail(data) {
       today,
     };
   }
-  return { menu, menuUpdatedAt, open, status: data.summary?.status || null };
+  return { menu, menuUpdatedAt, open, rating: parseRating(data), status: data.summary?.status || null };
 }
 
 export function createKakaoPlaceDetail({

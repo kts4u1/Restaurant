@@ -1,6 +1,6 @@
 // 앱 화면 파일만 저장해 두고, 검색(API)은 항상 서버에서 새로 받는다.
-const CACHE = 'hankki-v1';
-const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'manifest.webmanifest', 'icons/icon.svg'];
+const CACHE = 'hankki-v2';
+const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'ranking.js', 'manifest.webmanifest', 'icons/icon.svg'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

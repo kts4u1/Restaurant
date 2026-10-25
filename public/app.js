@@ -1,4 +1,6 @@
 // 한끼 최저가 - 화면 동작
+import { comparator, isTasty, SORTS } from './ranking.js';
+
 const $ = (sel) => document.querySelector(sel);
 const fmt = (n) => Math.round(n).toLocaleString('ko-KR');
 const esc = (s) =>
@@ -9,6 +11,7 @@ const DEFAULT_DETAIL_BATCH = 8;
 const DETAIL_WORKERS = 3;
 
 const state = {
+  sort: 'price',
   searchId: 0,
   center: null,
   label: '',
@@ -429,12 +432,7 @@ function filtered(conditions) {
     }
     list.push(p);
   }
-  list.sort(
-    (a, b) =>
-      a.price.amount - b.price.amount ||
-      Number(a.price.isEstimate) - Number(b.price.isEstimate) ||
-      a.distance - b.distance,
-  );
+  list.sort(comparator(state.sort));
   return { list, stats };
 }
 
@@ -458,6 +456,33 @@ function sourceBadge(price) {
   return `<span class="src src-${esc(price.source)}" title="가격 출처">${esc(price.sourceLabel)}${date}</span>`;
 }
 
+function ratingHtml(r) {
+  if (!r || (!r.count && !r.blog)) return '';
+  const parts = [];
+  if (r.score != null) parts.push(`<span class="star">★ ${r.score.toFixed(1)}</span> 리뷰 ${fmt(r.count)}`);
+  if (r.blog) parts.push(`블로그 ${fmt(r.blog)}`);
+  if (r.taste) parts.push(`<span class="taste">맛 추천 ${fmt(r.taste)}</span>`);
+  if (r.value) parts.push(`가성비 추천 ${fmt(r.value)}`);
+  return `<div class="r-rating">${parts.join(' · ')}</div>`;
+}
+
+const SORT_HINTS = {
+  price: '1인 한 끼 가격이 싼 순서로 보여줍니다.',
+  tasty: '예산 안에서 카카오맵 평점·리뷰가 좋은 순서입니다. 리뷰가 적은 곳의 높은 평점은 덜 믿도록 보정합니다.',
+  value: '평이 좋으면서 싼 곳 순서입니다 (평점이 같으면 싼 곳, 가격이 같으면 평이 좋은 곳이 위).',
+};
+
+function setSort(mode) {
+  state.sort = SORTS[mode] ? mode : 'price';
+  store.set('sort', state.sort);
+  document.querySelectorAll('.sort-choice input').forEach((r) => (r.checked = r.value === state.sort));
+  document.querySelectorAll('.sort-hint').forEach((el) => (el.textContent = SORT_HINTS[state.sort]));
+  if (state.places.size) {
+    state.shown = PAGE;
+    render();
+  }
+}
+
 function cardHtml(p, rank, people) {
   const price = p.price;
   const total = price.amount * people;
@@ -473,8 +498,9 @@ function cardHtml(p, rank, people) {
   return `<li class="result${rank <= 3 ? ' top' + rank : ''}" data-id="${esc(p.id)}">
     <div class="rank">${rank}</div>
     <div class="r-body">
-      <a class="r-name" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.name)}</a>${p.goodprice ? '<span class="badge gp" title="행정안전부·지자체 지정 착한가격업소">착한가격업소</span>' : ''}
+      <a class="r-name" href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.name)}</a>${isTasty(p.rating) ? '<span class="badge tasty" title="카카오맵 평점·리뷰가 좋은 곳">맛집</span>' : ''}${p.goodprice ? '<span class="badge gp" title="행정안전부·지자체 지정 착한가격업소">착한가격업소</span>' : ''}
       <div class="r-meta">${esc(p.groupLabel)} · ${walkText(p.distance)}${open ? ' · ' + open : ''}</div>
+      ${ratingHtml(p.rating)}
       <div class="r-menu">${menuLine}</div>
     </div>
     <div class="r-price">
@@ -519,6 +545,7 @@ function render() {
       ? `예산 ${fmt(conditions.budget)}원${conditions.mode === 'person' ? '(1인당)' : `(1인 ${fmt(conditions.perPersonBudget)}원)`}`
       : '예산 제한 없음',
     `실제 가격 확인 ${fmt(real)}곳`,
+    SORTS[state.sort],
   ];
   const excluded = [];
   if (stats.overBudget) excluded.push(`예산 초과 ${stats.overBudget}곳`);
@@ -771,6 +798,9 @@ function init() {
     }),
   );
   ['#people', '#budget', '#radius'].forEach((sel) => $(sel).addEventListener('input', updateBudgetHint));
+
+  document.querySelectorAll('.sort-choice input').forEach((r) => r.addEventListener('change', () => setSort(r.value)));
+  setSort(store.get('sort', 'price'));
 
   $('#nearby-form').addEventListener('submit', searchNearby);
   $('#place-form').addEventListener('submit', searchByPlace);

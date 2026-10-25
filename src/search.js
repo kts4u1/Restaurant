@@ -63,6 +63,7 @@ export function createSearchService({
       price,
       menu: menuWithFlags(det?.menu?.length ? det.menu : gp?.menus || [], context),
       menuUpdatedAt: det?.menuUpdatedAt || null,
+      rating: det?.rating || null,
       open: openInfo(det),
       detailStatus,
     };

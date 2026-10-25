@@ -44,7 +44,7 @@ export function buildServices(config, { fetchImpl = fetch } = {}) {
     fetchImpl,
     estimates: readJsonFile(path.join(config.dataDir, 'price-estimates.json'), {}),
     goodpriceEntries: readJsonFile(path.join(config.dataDir, 'goodprice.json'), []),
-    detailCachePersist: fileCacheStore(config.cacheDir, 'kakao-place'),
+    detailCachePersist: fileCacheStore(config.cacheDir, 'kakao-place-v2'), // v2: 평점 포함
   });
 }
 

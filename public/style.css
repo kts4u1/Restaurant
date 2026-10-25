@@ -335,3 +335,12 @@ body.secret-mode #key-card { display: none !important; }
 .segmented label:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 1px; }
 .picker .custom input#budget { width: 110px; }
 .hint.left { text-align: left; margin-top: 6px; }
+
+/* 정렬 (싼 곳 / 맛집 / 가성비) */
+.sort-choice { flex-wrap: wrap; }
+.filters .sort-choice { margin-bottom: 8px; }
+.r-rating { font-size: 0.84rem; margin-top: 2px; color: var(--muted); }
+.r-rating .star { color: #e8a200; font-weight: 800; }
+.r-rating .taste { color: var(--brand-strong); font-weight: 700; }
+.badge.tasty { background: #fff3bf; color: #8a5a00; }
+@media (prefers-color-scheme: dark) { .badge.tasty { background: #3a3117; color: #ffd43b; } }

@@ -156,5 +156,62 @@
     }
    ]
   }
+ },
+ "kakaomap_review": {
+  "score_set": {
+   "review_count": 36,
+   "total_score": 133,
+   "average_score": 3.7,
+   "photo_count": 12,
+   "strength_counts": [
+    {
+     "id": 5,
+     "count": 7
+    },
+    {
+     "id": 2,
+     "count": 3
+    },
+    {
+     "id": 3,
+     "count": 3
+    },
+    {
+     "id": 1,
+     "count": 1
+    }
+   ],
+   "strength_uv": 9
+  },
+  "strength_description": [
+   {
+    "id": 5,
+    "name": "맛",
+    "icon_url": "https://t1.kakaocdn.net/kakaomap_mobile/android/icon_review_delicious.png"
+   },
+   {
+    "id": 1,
+    "name": "가성비",
+    "icon_url": "https://t1.kakaocdn.net/kakaomap_mobile/android/icon_review_money.png"
+   },
+   {
+    "id": 2,
+    "name": "친절",
+    "icon_url": "https://t1.kakaocdn.net/kakaomap_mobile/android/icon_review_kind.png"
+   },
+   {
+    "id": 3,
+    "name": "분위기",
+    "icon_url": "https://t1.kakaocdn.net/kakaomap_mobile/android/icon_review_mood.png"
+   },
+   {
+    "id": 4,
+    "name": "주차",
+    "icon_url": "https://t1.kakaocdn.net/kakaomap_mobile/android/icon_review_parking.png"
+   }
+  ]
+ },
+ "blog_review": {
+  "review_count": 72
  }
 }

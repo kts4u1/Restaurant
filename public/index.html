@@ -91,6 +91,16 @@
           </div>
         </div>
 
+        <div class="field">
+          <label>무엇을 먼저 볼까요?</label>
+          <div class="segmented sort-choice" role="radiogroup" aria-label="정렬">
+            <label><input type="radio" name="sort-form" value="price" checked /> 💰 싼 곳 먼저</label>
+            <label><input type="radio" name="sort-form" value="tasty" /> 😋 맛집 먼저</label>
+            <label><input type="radio" name="sort-form" value="value" /> 👍 가성비 먼저</label>
+          </div>
+          <p class="hint left sort-hint"></p>
+        </div>
+
         <button type="submit" class="btn primary" id="nearby-btn">📍 검색</button>
         <p class="hint" id="nearby-hint">그냥 누르면 <b>나 1명 · 반경 300m</b>로 지금 위치 주변을 찾습니다.</p>
       </form>
@@ -136,6 +146,11 @@
       </div>
 
       <div class="filters">
+        <div class="segmented sort-choice" role="radiogroup" aria-label="정렬">
+          <label><input type="radio" name="sort-results" value="price" checked /> 💰 싼 곳 먼저</label>
+          <label><input type="radio" name="sort-results" value="tasty" /> 😋 맛집 먼저</label>
+          <label><input type="radio" name="sort-results" value="value" /> 👍 가성비 먼저</label>
+        </div>
         <div id="group-chips" class="chips" role="group" aria-label="종류"></div>
         <div class="toggles">
           <label class="toggle"><input type="checkbox" id="only-real" /> 확인된 가격만</label>
