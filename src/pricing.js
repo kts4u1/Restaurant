@@ -38,6 +38,9 @@ const ADDON_RICE_MAX = 4500;
 const MAIN_DISH_SHOP = /육류|고기|갈비|삼겹|곱창|막창|대창|구이|닭갈비|쭈꾸미|주꾸미|낙지|찜닭|족발|보쌈|샤브/;
 const AFTER_MEAT = /찌개|라면|냉면|볶음밥|공기/;
 const AFTER_MEAT_MAX = 6500;
+// 훠궈·샤브샤브처럼 재료를 하나씩 추가하는 가게의 싼 메뉴는 재료값
+const HOTPOT_SHOP = /훠궈|하이디라오|샤브|마라샹궈/;
+const HOTPOT_ITEM_MAX = 8000;
 const RELATIVE_FLOOR = 0.5;
 
 export function parsePrice(value) {
@@ -93,6 +96,9 @@ export function nonMealReason(name, price, context = '') {
     if (/볶음밥/.test(cleaned) && servingsFromName(full) >= 2) return '마무리 볶음밥';
     const perPerson = price ? price / servingsFromName(full) : null;
     if (MAIN_DISH_SHOP.test(context) && AFTER_MEAT.test(cleaned) && perPerson && perPerson < AFTER_MEAT_MAX) return '고기 주문 후 추가 메뉴';
+    if (HOTPOT_SHOP.test(context) && perPerson && perPerson < HOTPOT_ITEM_MAX) return '재료 추가 메뉴';
+    // 도시락집 '단품'은 밥 없이 반찬만
+    if (/도시락/.test(context) && /단품/.test(cleaned)) return '사이드 메뉴';
   }
   return null;
 }
