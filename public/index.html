@@ -46,41 +46,53 @@
     <section class="card" aria-labelledby="nearby-title">
       <h2 id="nearby-title">내 주변에서 찾기</h2>
       <form id="nearby-form" novalidate>
-        <div class="grid-2">
-          <div class="field">
-            <label for="people">인원 (명)</label>
-            <div class="stepper">
+        <div class="field">
+          <label for="people">몇 명이 먹나요?</label>
+          <div class="picker" data-input="people">
+            <button type="button" data-value="1">1명</button>
+            <button type="button" data-value="2">2명</button>
+            <button type="button" data-value="3">3명</button>
+            <button type="button" data-value="4">4명</button>
+            <button type="button" data-value="5">5명</button>
+            <button type="button" data-value="6">6명</button>
+            <span class="stepper">
               <button type="button" class="step" data-target="people" data-step="-1" aria-label="인원 줄이기">−</button>
-              <input id="people" type="number" inputmode="numeric" min="1" max="30" value="1" />
+              <input id="people" type="number" inputmode="numeric" min="1" max="30" value="1" aria-label="인원 직접 입력" />
               <button type="button" class="step" data-target="people" data-step="1" aria-label="인원 늘리기">+</button>
-            </div>
-          </div>
-          <div class="field">
-            <label for="budget">금액 (예산)</label>
-            <div class="budget">
-              <input id="budget" type="number" inputmode="numeric" min="0" step="1000" placeholder="제한 없음" />
-              <select id="budget-mode" aria-label="예산 기준">
-                <option value="total">총액</option>
-                <option value="person">1인당</option>
-              </select>
-            </div>
+            </span>
           </div>
         </div>
 
         <div class="field">
-          <label for="radius">주변 반경</label>
-          <div class="radius-picker" data-input="radius">
+          <label for="budget">예산은 얼마인가요?</label>
+          <div class="segmented" role="radiogroup" aria-label="예산 기준">
+            <label><input type="radio" name="budget-mode-choice" value="total" checked /> 전체 인원 총액</label>
+            <label><input type="radio" name="budget-mode-choice" value="person" /> 1인당</label>
+          </div>
+          <input type="hidden" id="budget-mode" value="total" />
+          <div class="picker" data-input="budget" id="budget-picker">
+            <!-- 버튼은 app.js 가 예산 기준(총액/1인당)에 맞춰 채운다 -->
+            <span class="custom"><input id="budget" type="number" inputmode="numeric" min="0" step="1000" placeholder="직접 입력" aria-label="예산 직접 입력(원)" /><span class="unit">원</span></span>
+          </div>
+          <p id="budget-hint" class="hint left"></p>
+        </div>
+
+        <div class="field">
+          <label for="radius">얼마나 멀리까지 찾을까요?</label>
+          <div class="picker" data-input="radius">
             <button type="button" data-value="100">100m</button>
-            <button type="button" data-value="200">200m</button>
             <button type="button" data-value="300">300m</button>
             <button type="button" data-value="500">500m</button>
             <button type="button" data-value="1000">1km</button>
-            <span class="custom"><input id="radius" type="number" inputmode="numeric" min="50" max="2000" step="50" value="300" aria-label="반경 직접 입력(미터)" /><span class="unit">m</span></span>
+            <button type="button" data-value="3000">3km</button>
+            <button type="button" data-value="5000">5km</button>
+            <button type="button" data-value="10000">10km</button>
+            <span class="custom"><input id="radius" type="number" inputmode="numeric" min="50" max="10000" step="50" value="300" aria-label="반경 직접 입력(미터)" /><span class="unit">m</span></span>
           </div>
         </div>
 
         <button type="submit" class="btn primary" id="nearby-btn">📍 검색</button>
-        <p class="hint">그냥 누르면 <b>나 1명 · 반경 300m</b>로 지금 위치 주변을 찾습니다.</p>
+        <p class="hint" id="nearby-hint">그냥 누르면 <b>나 1명 · 반경 300m</b>로 지금 위치 주변을 찾습니다.</p>
       </form>
     </section>
 
@@ -95,13 +107,15 @@
         </div>
         <div class="field">
           <label for="place-radius">그 위치 주변 반경</label>
-          <div class="radius-picker" data-input="place-radius">
+          <div class="picker" data-input="place-radius">
             <button type="button" data-value="100">100m</button>
-            <button type="button" data-value="200">200m</button>
             <button type="button" data-value="300">300m</button>
             <button type="button" data-value="500">500m</button>
             <button type="button" data-value="1000">1km</button>
-            <span class="custom"><input id="place-radius" type="number" inputmode="numeric" min="50" max="2000" step="50" value="300" aria-label="반경 직접 입력(미터)" /><span class="unit">m</span></span>
+            <button type="button" data-value="3000">3km</button>
+            <button type="button" data-value="5000">5km</button>
+            <button type="button" data-value="10000">10km</button>
+            <span class="custom"><input id="place-radius" type="number" inputmode="numeric" min="50" max="10000" step="50" value="300" aria-label="반경 직접 입력(미터)" /><span class="unit">m</span></span>
           </div>
         </div>
         <button type="submit" class="btn secondary" id="place-btn">🔎 이 위치 주변 검색</button>

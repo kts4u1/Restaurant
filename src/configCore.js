@@ -14,10 +14,10 @@ export function baseConfig(env = {}) {
     enableMenuFetch: env.ENABLE_MENU_FETCH !== 'false',
     menuConcurrency: num(env.MENU_CONCURRENCY, 4),
     detailCacheHours: num(env.DETAIL_CACHE_HOURS, 6),
-    maxPlaces: num(env.MAX_PLACES, 600),
+    maxPlaces: num(env.MAX_PLACES, 1000),
     kakaoMaxRequests: num(env.KAKAO_MAX_REQUESTS, 0) || undefined,
     minRadius: 50,
-    maxRadius: 2000,
+    maxRadius: 10000,
     overpassUrls: (env.OVERPASS_URLS ||
       'https://overpass-api.de/api/interpreter,https://overpass.kumi.systems/api/interpreter,https://maps.mail.ru/osm/tools/overpass/api/interpreter')
       .split(',')

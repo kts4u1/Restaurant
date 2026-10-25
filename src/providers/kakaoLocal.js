@@ -7,20 +7,23 @@ const PAGE_SIZE = 15;
 const MAX_PAGEABLE = 45;
 // 카테고리(FD6=음식점)에 안 잡히거나 분류가 애매한 곳까지 모으기 위한 추가 키워드
 const EXTRA_KEYWORDS = ['기사식당', '한식뷔페', '구내식당', '백반'];
+// 반경 안 식당이 너무 많으면(넓은 반경) 전부 대신 싼 한 끼 종류를 반경 전체에서 찾는다
+export const WIDE_KEYWORDS = ['김밥', '분식', '떡볶이', '기사식당', '한식뷔페', '구내식당', '백반', '국밥', '해장국', '칼국수', '국수', '중국집', '라면', '도시락', '착한가격업소', '함바'];
+export const FULL_SCAN_LIMIT = 1000;
 
 /** 남은 일 ↔ 짧은 문자열 목록 ("r:2", "c:013:1", "k:기사식당:1") */
 export function encodeTasks(tasks) {
-  return tasks.map((t) => (t.t === 'r' ? `r:${t.pg}` : t.t === 'c' ? `c:${t.path}:${t.pg}` : `k:${t.q}:${t.pg}`));
+  return tasks.map((t) => (t.t === 'r' ? `r:${t.pg}` : t.t === 'c' ? `c:${t.path}:${t.pg}` : `${t.t}:${t.q}:${t.pg}`));
 }
 
 export function decodeTasks(list) {
   if (!Array.isArray(list) || list.length > 300) throw Object.assign(new Error('잘못된 이어받기 정보입니다.'), { status: 400 });
   return list.map((s) => {
-    const m = String(s).match(/^(?:r:([1-3])|c:([0-3]{0,12}):([1-3])|k:([가-힣]{1,10}):([1-3]))$/);
+    const m = String(s).match(/^(?:r:([1-3])|c:([0-3]{0,12}):([1-3])|([kw]):([가-힣]{1,10}):([1-3]))$/);
     if (!m) throw Object.assign(new Error('잘못된 이어받기 정보입니다.'), { status: 400 });
     if (m[1]) return { t: 'r', pg: Number(m[1]) };
     if (m[3]) return { t: 'c', path: m[2], pg: Number(m[3]) };
-    return { t: 'k', q: m[4], pg: Number(m[5]) };
+    return { t: m[4], q: m[5], pg: Number(m[6]) };
   });
 }
 
@@ -107,6 +110,7 @@ export function createKakaoLocal({
     const found = new Map();
     let requests = 0;
     let truncated = false;
+    let wide = Boolean(continuation?.some?.((t) => String(t).startsWith('w:')));
     const root = boxAround(lat, lng, radius);
     const CATEGORY = '/v2/local/search/category.json';
     const KEYWORD = '/v2/local/search/keyword.json';
@@ -129,7 +133,15 @@ export function createKakaoLocal({
     async function run(task) {
       if (task.t === 'r') {
         const body = await call(CATEGORY, { ...base, radius: r, page: task.pg, size: PAGE_SIZE });
-        if (task.pg === 1 && (body.meta?.total_count ?? 0) > MAX_PAGEABLE) {
+        const total = body.meta?.total_count ?? 0;
+        if (task.pg === 1 && total > FULL_SCAN_LIMIT) {
+          // 넓은 반경: 가까운 식당 + 싼 한 끼 종류를 반경 전체에서 (정확도순이라 멀리 있는 곳도 나온다)
+          wide = true;
+          add(body.documents);
+          queue.splice(0, queue.length, ...WIDE_KEYWORDS.map((q) => ({ t: 'w', q, pg: 1 })));
+          return;
+        }
+        if (task.pg === 1 && total > MAX_PAGEABLE) {
           queue.unshift({ t: 'c', path: '', pg: 1 }); // 식당이 많으면 영역을 쪼개서 전부 모은다
           return;
         }
@@ -155,7 +167,8 @@ export function createKakaoLocal({
         add(body.documents);
         if (!lastPage(body, task.pg)) queue.unshift({ ...task, pg: task.pg + 1 });
       } else {
-        const body = await call(KEYWORD, { query: task.q, x: lng, y: lat, radius: r, sort: 'distance', page: task.pg, size: PAGE_SIZE });
+        const sort = task.t === 'w' ? 'accuracy' : 'distance';
+        const body = await call(KEYWORD, { query: task.q, x: lng, y: lat, radius: r, sort, page: task.pg, size: PAGE_SIZE });
         add(body.documents);
         if (!lastPage(body, task.pg)) queue.push({ ...task, pg: task.pg + 1 });
       }
@@ -187,7 +200,7 @@ export function createKakaoLocal({
     });
 
     const places = [...found.values()].filter((p) => distanceMeters(lat, lng, p.lat, p.lng) <= radius);
-    return { places, truncated, requests, continuation: queue.length ? encodeTasks(queue) : null };
+    return { places, truncated, wide, requests, continuation: queue.length ? encodeTasks(queue) : null };
   }
 
   /** 위치 이름/주소 → 좌표 후보 */

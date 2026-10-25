@@ -232,3 +232,16 @@ test('카카오: 잘못된 이어받기 정보는 거절', async () => {
   await assert.rejects(kakao.searchFoodPlaces({ ...CENTER, radius: 300, continuation: ['c:9:1'] }), /이어받기/);
   await assert.rejects(kakao.searchFoodPlaces({ ...CENTER, radius: 300, continuation: 'x' }), /이어받기/);
 });
+
+test('카카오: 넓은 반경(식당 1,000곳 초과)이면 싼 한 끼 종류를 반경 전체에서 찾는다', async () => {
+  const many = makePlaces(1200).map((d) => ({ ...d, x: CENTER.lng + (d.x - CENTER.lng) * 15, y: CENTER.lat + (d.y - CENTER.lat) * 15 }));
+  const far = { id: 'far1', place_name: '멀리김밥', category_name: '음식점 > 분식 > 김밥', category_group_code: 'FD6', x: CENTER.lng + 0.03, y: CENTER.lat };
+  const { fetchImpl, calls } = fakeKakao(many, { extra: { 김밥: [far] } });
+  const kakao = createKakaoLocal({ apiKey: 'test-key', baseUrl: 'http://kakao.test', fetchImpl });
+  const r = await kakao.searchFoodPlaces({ ...CENTER, radius: 5000 });
+  assert.equal(r.wide, true);
+  assert.ok(r.places.some((p) => p.name === '멀리김밥'), '반경 끝쪽 김밥집도 찾음');
+  assert.ok(!calls.some((u) => u.searchParams.has('rect')), '전체 영역 나누기는 하지 않음');
+  assert.ok(calls.some((u) => u.pathname.endsWith('/keyword.json') && u.searchParams.get('sort') === 'accuracy'));
+  assert.ok(calls.length < 60, String(calls.length));
+});

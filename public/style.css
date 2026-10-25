@@ -125,8 +125,8 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
 .budget input { flex: 1; min-width: 0; }
 .budget select { flex: 0 0 76px; padding: 8px 6px; }
 
-.radius-picker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.radius-picker button {
+.picker { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.picker > button {
   min-height: 40px;
   padding: 0 12px;
   border-radius: 999px;
@@ -135,10 +135,10 @@ input:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible
   cursor: pointer;
   font-size: 0.92rem;
 }
-.radius-picker button[aria-pressed='true'] { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 700; }
-.radius-picker .custom { display: inline-flex; align-items: center; gap: 4px; }
-.radius-picker .custom input { width: 88px; min-height: 40px; text-align: right; }
-.radius-picker .unit { color: var(--muted); }
+.picker > button[aria-pressed='true'] { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 700; }
+.picker .custom { display: inline-flex; align-items: center; gap: 4px; }
+.picker .custom input { width: 88px; min-height: 40px; text-align: right; }
+.picker .unit { color: var(--muted); }
 
 .btn {
   display: inline-flex;
@@ -321,3 +321,17 @@ code { font-size: 0.9em; background: var(--gray-soft); padding: 0 4px; border-ra
 
 body.secret-mode .local-only,
 body.secret-mode #key-card { display: none !important; }
+
+/* 인원: 버튼 + 직접 입력 */
+.picker .stepper { display: inline-flex; gap: 4px; }
+.picker .stepper .step { flex: 0 0 40px; height: 40px; }
+.picker .stepper input { width: 52px; min-height: 40px; }
+
+/* 예산 기준 (총액 / 1인당) */
+.segmented { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; margin-bottom: 8px; background: var(--gray-soft); }
+.segmented label { position: relative; padding: 6px 14px; border-radius: 999px; font-size: 0.88rem; cursor: pointer; color: var(--muted); }
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented label:has(input:checked) { background: var(--card); color: var(--text); font-weight: 700; box-shadow: var(--shadow); }
+.segmented label:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 1px; }
+.picker .custom input#budget { width: 110px; }
+.hint.left { text-align: left; margin-top: 6px; }

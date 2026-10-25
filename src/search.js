@@ -92,6 +92,9 @@ export function createSearchService({
       err.status = 502;
       throw err;
     }
+    if (result.wide) {
+      warnings.push('반경 안 식당이 아주 많아서 가까운 곳과 싼 한 끼 종류(김밥·분식·기사식당·한식뷔페·구내식당·백반·국밥·칼국수·중국집·도시락·착한가격업소 등) 위주로 찾았습니다. 모든 식당을 보려면 반경을 1km 이하로 줄여 주세요.');
+    }
     if (result.truncated) warnings.push('식당이 아주 많아 일부 구역은 다 못 가져왔을 수 있습니다. 반경을 줄이면 더 정확합니다.');
     const value = { provider, places: result.places, warnings, continuation: result.continuation || null };
     if (!continuation && !value.continuation) placesCache.set(key, value);

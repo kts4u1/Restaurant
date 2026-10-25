@@ -93,19 +93,63 @@ function readConditions() {
 }
 
 function readRadius(inputId) {
-  const max = state.status?.maxRadius || 2000;
+  const max = state.status?.maxRadius || 10000;
   const min = state.status?.minRadius || 50;
   const r = clampInt($('#' + inputId).value, min, max, 300);
   $('#' + inputId).value = r;
-  syncRadiusButtons(inputId);
+  syncPicker(inputId);
   store.set(inputId, r);
   return r;
 }
 
-function syncRadiusButtons(inputId) {
-  const picker = document.querySelector(`.radius-picker[data-input="${inputId}"]`);
-  const value = Number($('#' + inputId).value);
-  picker.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.value) === value)));
+/** 버튼 줄(picker)에서 지금 값과 같은 버튼을 눌린 상태로 */
+function syncPicker(inputId) {
+  const picker = document.querySelector(`.picker[data-input="${inputId}"]`);
+  if (!picker) return;
+  const raw = $('#' + inputId).value;
+  const value = raw === '' ? '' : Number(raw);
+  picker.querySelectorAll(':scope > button[data-value]').forEach((b) => {
+    const v = b.dataset.value === '' ? '' : Number(b.dataset.value);
+    b.setAttribute('aria-pressed', String(v === value));
+  });
+}
+
+// 예산 버튼: 총액이면 인원에 맞춰, 1인당이면 한 끼 가격대로
+const BUDGET_PRESETS = {
+  total: [10000, 20000, 30000, 50000, 100000],
+  person: [5000, 7000, 10000, 15000, 20000],
+};
+const won = (n) => (n % 1000 ? `${fmt(n)}원` : n >= 10000 ? `${n / 10000}만원` : `${n / 1000}천원`);
+
+function renderBudgetPicker() {
+  const mode = $('#budget-mode').value;
+  const picker = $('#budget-picker');
+  picker.querySelectorAll(':scope > button').forEach((b) => b.remove());
+  const custom = picker.querySelector('.custom');
+  const buttons = [['', '제한 없음'], ...BUDGET_PRESETS[mode].map((v) => [String(v), won(v)])];
+  for (const [value, label] of buttons) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.value = value;
+    b.textContent = label;
+    picker.insertBefore(b, custom);
+  }
+  syncPicker('budget');
+  updateBudgetHint();
+}
+
+const radiusText = (m) => (m >= 1000 ? `${Math.round(m / 100) / 10}km` : `${m}m`);
+
+function updateBudgetHint() {
+  const { people, budget, mode, perPersonBudget } = readConditionsSilently();
+  const radius = clampInt($('#radius').value, 50, 10000, 300);
+  const budgetText = !budget ? '예산 제한 없음' : mode === 'total' ? `총 ${won(budget)}` : `1인당 ${won(budget)}`;
+  $('#nearby-hint').innerHTML = `<b>${people}명 · ${esc(budgetText)} · 반경 ${radiusText(radius)}</b>로 지금 위치 주변을 찾습니다.`;
+  $('#budget-hint').textContent = !budget
+    ? '예산 제한 없이 가장 싼 순서로 보여줍니다.'
+    : mode === 'total'
+      ? `${people}명 총 ${fmt(budget)}원 → 1인당 ${fmt(perPersonBudget)}원 이하인 곳`
+      : `1인당 ${fmt(budget)}원 → ${people}명이면 총 ${fmt(budget * people)}원 이하인 곳`;
 }
 
 /* ---------- 현재 위치 ---------- */
@@ -230,7 +274,7 @@ async function runSearch({ lat, lng, radius, label }) {
 
   const section = $('#results-section');
   section.hidden = false;
-  $('#summary-title').textContent = `${label} 주변 ${radius >= 1000 ? radius / 1000 + 'km' : radius + 'm'}`;
+  $('#summary-title').textContent = `${label} 주변 ${radius >= 1000 ? Math.round(radius / 100) / 10 + 'km' : radius + 'm'}`;
   $('#summary').innerHTML = '<span class="spin"></span> 주변 식당을 모으는 중…';
   $('#results').innerHTML = '';
   $('#empty').hidden = true;
@@ -395,8 +439,11 @@ function filtered(conditions) {
 }
 
 function walkText(m) {
-  const min = Math.max(1, Math.round(m / 67));
-  return `${fmt(m)}m · 도보 ${min}분`;
+  if (m >= 1000) {
+    const km = (m / 1000).toFixed(1);
+    return m <= 2000 ? `${km}km · 도보 ${Math.round(m / 67)}분` : `${km}km`;
+  }
+  return `${fmt(m)}m · 도보 ${Math.max(1, Math.round(m / 67))}분`;
 }
 
 function openText(p) {
@@ -690,26 +737,40 @@ function init() {
   $('#radius').value = store.get('radius', 300);
   $('#place-radius').value = store.get('place-radius', 300);
   $('#place-query').value = store.get('placeQuery', '');
-  syncRadiusButtons('radius');
-  syncRadiusButtons('place-radius');
+  document.querySelectorAll('input[name="budget-mode-choice"]').forEach((r) => (r.checked = r.value === $('#budget-mode').value));
+  ['radius', 'place-radius', 'people'].forEach(syncPicker);
+  renderBudgetPicker();
 
   document.querySelectorAll('.step').forEach((b) =>
     b.addEventListener('click', () => {
       const input = $('#' + b.dataset.target);
       input.value = clampInt(Number(input.value) + Number(b.dataset.step), 1, 30, 1);
-      if (state.places.size) render();
+      input.dispatchEvent(new Event('input'));
     }),
   );
-  document.querySelectorAll('.radius-picker').forEach((picker) => {
+  // 버튼 줄: 누르면 입력칸에 값을 넣는다
+  document.querySelectorAll('.picker').forEach((picker) => {
     const inputId = picker.dataset.input;
     picker.addEventListener('click', (e) => {
       const b = e.target.closest('button[data-value]');
-      if (!b) return;
+      if (!b || b.parentElement !== picker) return;
       $('#' + inputId).value = b.dataset.value;
-      syncRadiusButtons(inputId);
+      $('#' + inputId).dispatchEvent(new Event('input'));
     });
-    $('#' + inputId).addEventListener('input', () => syncRadiusButtons(inputId));
+    $('#' + inputId).addEventListener('input', () => syncPicker(inputId));
   });
+  document.querySelectorAll('input[name="budget-mode-choice"]').forEach((r) =>
+    r.addEventListener('change', () => {
+      // 기준을 바꾸면 금액을 비운다 (총액 2만원 ≠ 1인당 2만원)
+      $('#budget-mode').value = r.value;
+      $('#budget').value = '';
+      store.set('budgetMode', r.value);
+      store.set('budget', '');
+      renderBudgetPicker();
+      $('#budget-mode').dispatchEvent(new Event('input'));
+    }),
+  );
+  ['#people', '#budget', '#radius'].forEach((sel) => $(sel).addEventListener('input', updateBudgetHint));
 
   $('#nearby-form').addEventListener('submit', searchNearby);
   $('#place-form').addEventListener('submit', searchByPlace);
